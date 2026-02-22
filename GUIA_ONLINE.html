@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>📖 Once Upon a Time — Ponerlo Online</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0a0a0a;color:#e0e0e0;line-height:1.7;padding:20px;}
+.wrap{max-width:750px;margin:0 auto;}
+h1{color:#d4af37;text-align:center;font-size:28px;margin:30px 0 10px;letter-spacing:2px;}
+.subtitle{text-align:center;color:#888;margin-bottom:40px;font-size:15px;}
+h2{color:#d4af37;font-size:20px;margin:40px 0 15px;padding:10px 0;border-bottom:2px solid #d4af37;}
+h3{color:#f5d058;font-size:16px;margin:25px 0 10px;}
+p{margin:10px 0;color:#ccc;font-size:14px;}
+.step{background:#111;border:1px solid #222;border-left:4px solid #d4af37;padding:20px;margin:15px 0;border-radius:0 8px 8px 0;position:relative;}
+.step-num{position:absolute;top:-12px;left:-4px;background:#d4af37;color:#000;font-weight:bold;font-size:13px;padding:3px 12px;border-radius:0 8px 8px 0;}
+.step h3{margin-top:8px;}
+code{background:#1a1a2e;color:#f5d058;padding:2px 7px;border-radius:3px;font-size:13px;font-family:'SF Mono',Monaco,Consolas,monospace;}
+.cmd{background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:14px 18px;margin:12px 0;font-family:'SF Mono',Monaco,Consolas,monospace;font-size:13px;color:#c9d1d9;position:relative;line-height:1.8;overflow-x:auto;white-space:pre-wrap;word-break:break-all;}
+.cmd .comment{color:#6a737d;}
+.cmd .highlight{color:#f5d058;font-weight:bold;}
+.copy-btn{position:absolute;top:8px;right:8px;background:#30363d;color:#c9d1d9;border:none;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:11px;}
+.copy-btn:hover{background:#484f58;}
+.warn{background:#1a1000;border:1px solid #d4af37;border-radius:8px;padding:15px;margin:12px 0;}
+.warn::before{content:'⚠️ ';font-size:16px;}
+.tip{background:#001a0d;border:1px solid #2e7d32;border-radius:8px;padding:15px;margin:12px 0;}
+.tip::before{content:'💡 ';font-size:16px;}
+.ok{background:#0a1a0a;border:1px solid #4caf50;border-radius:8px;padding:15px;margin:12px 0;color:#81c784;}
+.ok::before{content:'✅ ';font-size:16px;}
+.screenshot{background:#1a1a1a;border:2px solid #333;border-radius:8px;padding:20px;margin:15px 0;text-align:center;color:#888;font-style:italic;font-size:13px;}
+.screenshot::before{content:'🖥️ ';font-size:18px;}
+.nav{display:flex;gap:10px;justify-content:center;margin:30px 0;flex-wrap:wrap;}
+.nav a{background:#d4af37;color:#000;padding:8px 18px;text-decoration:none;border-radius:6px;font-weight:bold;font-size:13px;}
+.nav a:hover{background:#f5d058;}
+.progress{display:flex;justify-content:space-between;margin:20px 0 40px;padding:0 10px;}
+.progress .dot{width:40px;height:40px;border-radius:50%;background:#222;border:2px solid #444;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:14px;color:#666;}
+.progress .dot.active{background:#d4af37;border-color:#d4af37;color:#000;}
+.progress .line{flex:1;height:2px;background:#333;align-self:center;margin:0 5px;}
+.time{background:#1a0a1a;border:1px solid #7b1fa2;border-radius:8px;padding:10px 15px;margin:10px 0;font-size:13px;color:#ce93d8;}
+.time::before{content:'⏱️ ';}
+ol{margin:10px 0 10px 25px;}
+ol li{margin:6px 0;color:#ccc;font-size:14px;}
+.final{text-align:center;background:linear-gradient(135deg,#1a1000,#0a0800);border:2px solid #d4af37;border-radius:12px;padding:30px;margin:40px 0;}
+.final h2{border:none;margin:0 0 10px;}
+.final p{font-size:16px;}
+img{max-width:100%;border-radius:8px;margin:10px 0;}
+a{color:#d4af37;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>📖 ONCE UPON A TIME</h1>
+<p class="subtitle">Guía para ponerlo online — paso a paso, sin experiencia previa</p>
+
+<div class="progress">
+  <div class="dot active">1</div><div class="line"></div>
+  <div class="dot active">2</div><div class="line"></div>
+  <div class="dot active">3</div><div class="line"></div>
+  <div class="dot active">4</div><div class="line"></div>
+  <div class="dot active">5</div>
+</div>
+
+<p style="text-align:center;color:#888;">5 pasos · ~15 minutos la primera vez · después funciona para siempre</p>
+
+<div class="time">Tiempo total estimado: 15-20 minutos (solo la primera vez)</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<h2>PASO 1 — Instalar lo necesario</h2>
+<!-- ═══════════════════════════════════════════ -->
+
+<div class="step">
+<div class="step-num">1.1</div>
+<h3>Instala Node.js</h3>
+<p>Node.js es el motor que ejecuta el servidor del juego. Solo se necesita para ejecutar en local (en Render se instala solo).</p>
+<p><strong>Si solo quieres jugar ONLINE (sin instalar nada en tu Mac) puedes saltarte este paso.</strong> Pero es útil tenerlo para probar en casa.</p>
+<ol>
+  <li>Abre <a href="https://nodejs.org" target="_blank">https://nodejs.org</a></li>
+  <li>Pulsa el botón verde grande que dice <strong>LTS</strong> (la versión estable)</li>
+  <li>Se descargará un archivo <code>.pkg</code> → ábrelo</li>
+  <li>Siguiente → Siguiente → Instalar → listo</li>
+</ol>
+</div>
+
+<div class="step">
+<div class="step-num">1.2</div>
+<h3>Ten GitHub Desktop instalado</h3>
+<p>Ya lo tienes. Si por alguna razón no lo tienes: <a href="https://desktop.github.com" target="_blank">desktop.github.com</a></p>
+<p>Ábrelo y asegúrate de haber iniciado sesión con tu cuenta de GitHub.</p>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<h2>PASO 2 — Crear cuenta en GitHub</h2>
+<!-- ═══════════════════════════════════════════ -->
+
+<div class="step">
+<div class="step-num">2</div>
+<h3>Regístrate en GitHub (si no tienes cuenta)</h3>
+<p>GitHub es donde se guardará el código del juego. Es gratuito.</p>
+<ol>
+  <li>Ve a <a href="https://github.com/signup" target="_blank">https://github.com/signup</a></li>
+  <li>Introduce email, contraseña, nombre de usuario</li>
+  <li>Confirma el email que te envíen</li>
+</ol>
+<p>Si ya tienes cuenta, simplemente asegúrate de estar logueado en GitHub Desktop.</p>
+<div class="tip">No necesitas crear ningún repositorio manualmente. GitHub Desktop lo hace por ti en el paso 3.</div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<h2>PASO 3 — Subir el juego a GitHub</h2>
+<!-- ═══════════════════════════════════════════ -->
+
+<div class="tip"><strong>Usaremos GitHub Desktop</strong> (la app visual). Si no la tienes: <a href="https://desktop.github.com" target="_blank">desktop.github.com</a></div>
+
+<div class="step">
+<div class="step-num">3.1</div>
+<h3>Descomprime el ZIP en tu Escritorio</h3>
+<p>Haz doble clic en el ZIP descargado. Debería quedarte una carpeta llamada <code>once-upon-a-time-lan</code>.</p>
+</div>
+
+<div class="step">
+<div class="step-num">3.2</div>
+<h3>Abre GitHub Desktop e inicia sesión</h3>
+<ol>
+  <li>Abre <strong>GitHub Desktop</strong></li>
+  <li>Si es tu primera vez, te pedirá iniciar sesión con tu cuenta de GitHub</li>
+  <li>Autoriza el acceso</li>
+</ol>
+</div>
+
+<div class="step">
+<div class="step-num">3.3</div>
+<h3>Añade la carpeta del juego</h3>
+<ol>
+  <li>En GitHub Desktop, ve al menú: <strong>File → Add Local Repository...</strong></li>
+  <li>Navega hasta la carpeta <code>once-upon-a-time-lan</code> y selecciónala</li>
+  <li>Te dirá <em>"This directory does not appear to be a Git repository"</em></li>
+  <li>Pulsa el enlace azul <strong>"create a repository"</strong> que aparece en ese mismo mensaje</li>
+</ol>
+<div class="screenshot">Aparece un diálogo para crear repositorio.<br>
+<strong>Name:</strong> se rellena solo (once-upon-a-time-lan)<br>
+<strong>Local Path:</strong> ya apunta a tu carpeta<br>
+Deja todo lo demás como está y pulsa <strong>"Create Repository"</strong></div>
+</div>
+
+<div class="step">
+<div class="step-num">3.4</div>
+<h3>Haz el primer commit</h3>
+<p>GitHub Desktop ahora muestra todos los archivos del juego en la lista de cambios (columna izquierda).</p>
+<ol>
+  <li>Abajo a la izquierda, en el campo <strong>"Summary"</strong>, escribe: <code>juego completo</code></li>
+  <li>Pulsa el botón azul <strong>"Commit to main"</strong></li>
+</ol>
+<div class="screenshot">Verás que la lista de archivos se vacía. Eso es bueno — significa que todo está guardado.</div>
+</div>
+
+<div class="step">
+<div class="step-num">3.5</div>
+<h3>Súbelo a GitHub</h3>
+<ol>
+  <li>Ahora arriba aparece un botón: <strong>"Publish repository"</strong></li>
+  <li>Púlsalo</li>
+  <li>Aparece un diálogo:
+    <ul>
+      <li><strong>Name:</strong> <code>once-upon-a-time</code> (puedes cambiarlo)</li>
+      <li><strong>"Keep this code private":</strong> <strong>DESMARCA esta casilla</strong> (necesitamos que sea público para que Render lo vea gratis)</li>
+    </ul>
+  </li>
+  <li>Pulsa <strong>"Publish Repository"</strong></li>
+</ol>
+<div class="warn">Si la casilla "Keep this code private" está marcada, Render no podrá acceder en el plan gratuito. <strong>Desmárcala.</strong></div>
+</div>
+
+<div class="ok"><strong>¡Listo!</strong> Tu código está en GitHub. Puedes verificarlo visitando <code>https://github.com/TU_USUARIO/once-upon-a-time</code> en el navegador — deberías ver todos los archivos.</div>
+
+<div class="step">
+<h3>🔧 Si en el futuro quieres actualizar el juego:</h3>
+<ol>
+  <li>Reemplaza los archivos en la carpeta con la nueva versión</li>
+  <li>Abre GitHub Desktop — verás los cambios detectados automáticamente</li>
+  <li>Escribe algo en "Summary" (ej: <code>actualización</code>)</li>
+  <li>Pulsa <strong>"Commit to main"</strong></li>
+  <li>Pulsa <strong>"Push origin"</strong> (arriba)</li>
+  <li>Render redespliega automáticamente en 2-3 minutos</li>
+</ol>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<h2>PASO 4 — Despliega en Render (la magia)</h2>
+<!-- ═══════════════════════════════════════════ -->
+
+<div class="step">
+<div class="step-num">4.1</div>
+<h3>Crea cuenta en Render</h3>
+<ol>
+  <li>Ve a <a href="https://render.com" target="_blank">https://render.com</a></li>
+  <li>Pulsa <strong>Get Started for Free</strong></li>
+  <li>Elige <strong>Sign up with GitHub</strong> (lo más fácil — así ya se conectan)</li>
+  <li>Autoriza el acceso cuando te lo pida</li>
+</ol>
+</div>
+
+<div class="step">
+<div class="step-num">4.2</div>
+<h3>Crea un Web Service nuevo</h3>
+<ol>
+  <li>En el Dashboard de Render, pulsa <strong>New +</strong> (arriba a la derecha)</li>
+  <li>Selecciona <strong>Web Service</strong></li>
+  <li>Pulsa <strong>Build and deploy from a Git repository</strong> → Next</li>
+  <li>Busca tu repositorio <code>once-upon-a-time</code> en la lista y pulsa <strong>Connect</strong></li>
+</ol>
+<div class="tip">Si no aparece tu repo, pulsa "Configure account" y dale permisos a Render para acceder a tus repositorios de GitHub.</div>
+</div>
+
+<div class="step">
+<div class="step-num">4.3</div>
+<h3>Configura el servicio</h3>
+<p>Rellena estos campos exactamente así:</p>
+
+<table style="width:100%;border-collapse:collapse;margin:12px 0;">
+<tr style="border-bottom:1px solid #333;">
+  <td style="padding:8px;color:#888;width:40%;">Name</td>
+  <td style="padding:8px;"><code>once-upon-a-time</code> <span style="color:#666;">(o el nombre que quieras)</span></td>
+</tr>
+<tr style="border-bottom:1px solid #333;">
+  <td style="padding:8px;color:#888;">Region</td>
+  <td style="padding:8px;"><code>Frankfurt (EU Central)</code> <span style="color:#666;">← el más cercano a España</span></td>
+</tr>
+<tr style="border-bottom:1px solid #333;">
+  <td style="padding:8px;color:#888;">Branch</td>
+  <td style="padding:8px;"><code>main</code></td>
+</tr>
+<tr style="border-bottom:1px solid #333;">
+  <td style="padding:8px;color:#888;">Runtime</td>
+  <td style="padding:8px;"><code>Node</code></td>
+</tr>
+<tr style="border-bottom:1px solid #333;">
+  <td style="padding:8px;color:#888;">Build Command</td>
+  <td style="padding:8px;"><code style="background:#0d1117;padding:5px 10px;display:inline-block;">npm install</code></td>
+</tr>
+<tr style="border-bottom:1px solid #333;">
+  <td style="padding:8px;color:#888;">Start Command</td>
+  <td style="padding:8px;"><code style="background:#0d1117;padding:5px 10px;display:inline-block;">npm start</code></td>
+</tr>
+<tr style="border-bottom:1px solid #333;">
+  <td style="padding:8px;color:#888;">Instance Type</td>
+  <td style="padding:8px;"><strong style="color:#4caf50;">Free</strong> <span style="color:#666;">← MUY IMPORTANTE, selecciona Free</span></td>
+</tr>
+</table>
+</div>
+
+<div class="step">
+<div class="step-num">4.4</div>
+<h3>¡Despliega!</h3>
+<ol>
+  <li>Baja del todo y pulsa <strong>Create Web Service</strong></li>
+  <li>Render empezará a construir tu app. Verás un log en pantalla con texto verde/blanco.</li>
+  <li>Espera 3-5 minutos. Cuando veas <strong style="color:#4caf50;">"⚜ Once Upon a Time — puerto XXXX"</strong> al final del log → ¡funciona!</li>
+</ol>
+<div class="screenshot">Arriba del todo, Render te muestra una URL tipo:<br><br><strong style="color:#d4af37;font-size:18px;">https://once-upon-a-time-xxxx.onrender.com</strong><br><br>Esa es TU dirección. Cópiala.</div>
+</div>
+
+<div class="ok"><strong>¡HECHO!</strong> Tu juego está online. Esa URL funciona desde cualquier dispositivo con internet, en cualquier parte del mundo.</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<h2>PASO 5 — Jugar con los alumnos</h2>
+<!-- ═══════════════════════════════════════════ -->
+
+<div class="step">
+<div class="step-num">5.1</div>
+<h3>Antes de clase</h3>
+<ol>
+  <li>Abre la URL en tu navegador para "despertar" el servidor (tarda ~30 segundos la primera vez)</li>
+  <li>Crea una sala</li>
+  <li>Anota el código de sala</li>
+</ol>
+</div>
+
+<div class="step">
+<div class="step-num">5.2</div>
+<h3>En clase</h3>
+<ol>
+  <li>Escribe en la pizarra:<br>
+    <div style="background:#fff;color:#000;padding:15px;border-radius:8px;margin:10px 0;text-align:center;font-size:20px;font-weight:bold;">
+      https://once-upon-a-time-xxxx.onrender.com<br>
+      <span style="font-size:28px;color:#c62828;">CÓDIGO: DRAGON427</span>
+    </div>
+  </li>
+  <li>Los alumnos abren la URL en el navegador de su móvil o portátil</li>
+  <li>Ponen su nombre y el código de sala</li>
+  <li>Cuando estén todos, pulsa START</li>
+</ol>
+</div>
+
+<div class="tip"><strong>No necesitan instalar nada.</strong> Solo abrir una dirección en el navegador. Funciona en iPhone, Android, portátil, tablet... cualquier cosa con internet.</div>
+
+<div class="final">
+<h2 style="font-size:24px;">🎉 ¡Y ya está!</h2>
+<p>Tu juego está online permanentemente.<br>Solo necesitas la URL y ya puedes jugar cuando quieras.</p>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<h2>Preguntas frecuentes</h2>
+<!-- ═══════════════════════════════════════════ -->
+
+<div class="step">
+<h3>💤 "Tarda mucho en cargar la primera vez"</h3>
+<p>Normal. El plan gratuito de Render "duerme" el servidor tras 15 minutos sin uso. La primera conexión tarda ~30 segundos en despertar. <strong>Solución:</strong> abre la URL 2-3 minutos antes de que lleguen los alumnos.</p>
+</div>
+
+<div class="step">
+<h3>📱 "¿Necesitan los alumnos alguna app?"</h3>
+<p>No. Solo el navegador (Chrome, Safari, Firefox...). Abren la URL y listo.</p>
+</div>
+
+<div class="step">
+<h3>🔄 "Un alumno se ha desconectado"</h3>
+<p>Que vuelva a entrar con el <strong>mismo nombre</strong> y el mismo código de sala. El servidor le devuelve su mano de cartas automáticamente.</p>
+</div>
+
+<div class="step">
+<h3>🏠 "¿Puedo también jugar en local sin internet?"</h3>
+<p>Sí. Los archivos <code>INSTALAR.bat</code> / <code>.command</code> y <code>JUGAR.bat</code> / <code>.command</code> siguen funcionando para jugar en LAN.</p>
+</div>
+
+<div class="step">
+<h3>🔧 "¿Cómo actualizo el juego si hay cambios?"</h3>
+<p>Si en el futuro recibes una versión nueva del ZIP:</p>
+<ol>
+  <li>Reemplaza los archivos en la carpeta con los nuevos</li>
+  <li>Abre <strong>GitHub Desktop</strong> — detecta los cambios automáticamente</li>
+  <li>Escribe algo en "Summary" (ej: <code>actualización</code>)</li>
+  <li>Pulsa <strong>"Commit to main"</strong></li>
+  <li>Pulsa <strong>"Push origin"</strong> (arriba)</li>
+</ol>
+<p>Render redespliega automáticamente en 2-3 minutos.</p>
+</div>
+
+<div class="step">
+<h3>💰 "¿Me van a cobrar algo?"</h3>
+<p>No. Tanto GitHub como Render tienen plan gratuito. Con el plan free de Render tienes 750 horas al mes, que es más que suficiente para uso escolar. Ni siquiera necesitas tarjeta de crédito.</p>
+</div>
+
+<div class="step">
+<h3>🚨 "Me da error al subir por los archivos de música"</h3>
+<p>Los MP3 son grandes (~7MB cada uno). GitHub acepta hasta 100MB por archivo, así que debería funcionar. Si da error:</p>
+<ol>
+  <li>Abre el archivo <code>.gitignore</code> de la carpeta con un editor de texto</li>
+  <li>Añade la línea <code>*.mp3</code> y guarda</li>
+  <li>En GitHub Desktop: commit + push de nuevo</li>
+</ol>
+<p>El juego funcionará igual, solo sin las pistas de música opcionales.</p>
+</div>
+
+<p style="text-align:center;color:#555;margin:40px 0;font-size:12px;">Guía creada para Once Upon a Time LAN — Versión Online</p>
+
+</div>
+</body>
+</html>
