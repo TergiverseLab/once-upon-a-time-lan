@@ -57,7 +57,7 @@ function parseWords(text){if(!text)return[];const ws=[];let i=0;
 function CardImg({img,size}){if(!img)return null;return <img src={`/cards/${img}`} alt="" className={`cimg cimg-${size||'md'}`} loading="lazy"/>;}
 
 // ═══ STORY WORDS — renders enchanted/sealed/pending spans ═══
-function StoryWords({text,integrations,sealedPos,pendingVote,players}){
+function StoryWords({text,integrations,sealedPos,pendingVote,players,dropEnabled,onWordDrop,dragOverWord,setDragOverWord}){
   if(!text)return null;const ws=parseWords(text);
   const pvS=pendingVote?.fragment?.start??-1;const pvE=pendingVote?.fragment?.end??-1;
   const pvWords=[];ws.forEach((w,idx)=>{if(!w.sp&&pvS>=0&&w.s>=pvS&&w.e<=pvE)pvWords.push(idx);});
@@ -66,18 +66,31 @@ function StoryWords({text,integrations,sealedPos,pendingVote,players}){
   const pvColor=pIdx>=0?pc(pIdx):null;
   const isInt=pendingVote?.type==='interrupt';
 
+  function wordDragHandlers(w){
+    if(!dropEnabled||w.sp)return {};
+    return {
+      onDragOver:e=>{e.preventDefault();e.dataTransfer.dropEffect='move';setDragOverWord?.({s:w.s,e:w.e,t:w.t});},
+      onDragEnter:e=>{e.preventDefault();setDragOverWord?.({s:w.s,e:w.e,t:w.t});},
+      onDragLeave:()=>{},
+      onDrop:e=>{e.preventDefault();e.stopPropagation();const cardId=e.dataTransfer.getData('cardId');if(cardId&&onWordDrop)onWordDrop(cardId,{text:w.t,start:w.s,end:w.e});setDragOverWord?.(null);}
+    };
+  }
+  const dw=dragOverWord;
+
   return(<>{ws.map((w,idx)=>{
     if(w.sp)return <span key={idx}>{w.t==='\n'?<br/>:' '}</span>;
+    const isDropTarget=dropEnabled&&!w.sp;
+    const isHover=dw&&w.s===dw.s;
     let ig=null;if(integrations?.length)for(const x of integrations)if(w.s>=x.start&&w.e<=x.end){ig=x;break;}
     const inVote=pvS>=0&&w.s>=pvS&&w.e<=pvE;
     if(ig){const pi=players?.findIndex(p=>p.id===ig.playerId)??-1;const ic=pi>=0?pc(pi):null;
-      return <span key={idx} id={inVote&&idx===firstPv?'pv-anchor':undefined} className="sw sw-enchanted" style={{'--ic':TC[ig.conceptType],'--pc':ic?.l||TC[ig.conceptType]}} title={`✦ ${ig.conceptName} — ${ig.playerName}`}>{w.t}</span>;}
+      return <span key={idx} id={inVote&&idx===firstPv?'pv-anchor':undefined} className={`sw sw-enchanted ${isHover?'sw-drophover':''}`} style={{'--ic':TC[ig.conceptType],'--pc':ic?.l||TC[ig.conceptType]}} title={`✦ ${ig.conceptName} — ${ig.playerName}`} {...wordDragHandlers(w)}>{w.t}</span>;}
     if(inVote&&!ig){const isF=idx===firstPv;const isL=idx===lastPv;
       return(<span key={idx} id={isF?'pv-anchor':undefined}
-        className={`sw sw-pending ${isF?'pv-first':''} ${isL?'pv-last':''} ${isInt?'pv-interrupt':''}`}
-        style={{'--pc':pvColor?.l||'#fff','--pbg':pvColor?.bg||'#333'}}>{w.t}</span>);}
-    if(w.e<=sealedPos)return <span key={idx} className="sw sw-sealed">{w.t}</span>;
-    return <span key={idx} className="sw">{w.t}</span>;
+        className={`sw sw-pending ${isF?'pv-first':''} ${isL?'pv-last':''} ${isInt?'pv-interrupt':''} ${isHover?'sw-drophover':''}`}
+        style={{'--pc':pvColor?.l||'#fff','--pbg':pvColor?.bg||'#333'}} {...wordDragHandlers(w)}>{w.t}</span>);}
+    if(w.e<=sealedPos)return <span key={idx} className={`sw sw-sealed ${isHover?'sw-drophover':''} ${isDropTarget?'sw-droptarget':''}`} {...wordDragHandlers(w)}>{w.t}</span>;
+    return <span key={idx} className={`sw ${isHover?'sw-drophover':''} ${isDropTarget?'sw-droptarget':''}`} {...wordDragHandlers(w)}>{w.t}</span>;
   })}</>);
 }
 
@@ -99,37 +112,41 @@ function FloatingCardOverlay({vote,players}){
     <span className="fco-connector"/><span className="fco-sparkles">{[0,1,2,3,4].map(i=><span key={i} className="fco-spark" style={{'--si':i}}/>)}</span></div>);
 }
 
-// ═══ VOTE CORNER — non-blocking, top-right ═══
+// ═══ VOTE CORNER — inline below log, veto-only ═══
 function VoteCorner({vote,players,myId,onVote,isSpec,config}){
   const[reason,setReason]=useState('');
   const canVote=vote.eligible?.includes(myId)&&!vote.votedPlayerIds?.includes(myId);
   const hasVoted=vote.votedPlayerIds?.includes(myId);
-  const labs={integrate:'► JUGAR CARTA',interrupt:'⚡ INTERRUPCIÓN',ending:'★ FINAL'};
+  const labs={integrate:'JUGAR CARTA',interrupt:'INTERRUPCIÓN',ending:'FINAL'};
   const maxTime=vote.round===2?(config?.tiebreakTime||8):(config?.voteTime||20);
   const tP=Math.min(100,(vote.timeLeft/maxTime)*100);
   const iIdx=players.findIndex(p=>p.id===vote.initiatorId);
   const pC=iIdx>=0?pc(iIdx):pc(0);const isInt=vote.type==='interrupt';
   const details=vote.voteDetails||[];
-  function submitVote(approve){onVote(approve,reason.trim());setReason('');}
+  function submitVeto(){onVote(false,reason.trim());setReason('');}
   return(<div className={`vcorner ${isInt?'vc-int':''}`} style={{'--vpc':pC.l,'--vpbg':pC.bg}}>
     <div className="vc-bar"><div className="vc-bar-fill" style={{width:tP+'%',background:tP<30?'#ff1744':tP<60?'#ff9100':pC.l}}/></div>
     <div className="vc-head"><span className="vc-type" style={{color:isInt?'#ef9a9a':vote.type==='ending'?'var(--gold)':'#81c784'}}>{labs[vote.type]||'CARTA'}</span>{vote.round===2&&<span className="vc-tie">DESEMPATE</span>}<span className="vc-time" style={{color:tP<30?'#ff1744':pC.l}}>{vote.timeLeft}s</span></div>
-    <div className="vc-who"><div className="avsm" style={{background:pC.bg}}>{vote.initiatorName?.[0]}</div><span style={{color:pC.l}}>{vote.initiatorName}</span></div>
-    {vote.concept&&<div className="vc-card">{vote.concept.img&&<img src={`/cards/${vote.concept.img}`} className="vc-cardimg" alt=""/>}<div className="vc-cardinfo"><span style={{color:TC[vote.concept.type]}}>{TI[vote.concept.type]}</span><strong>{vote.concept.name}</strong><em className={`vc-type-lbl ${vote.concept.isInterruption?'vc-wc':''}`} style={{color:TC[vote.concept.type]}}>{vote.concept.isInterruption?`↻ Comodín ${TL[vote.concept.type]}`:TL[vote.concept.type]}</em></div></div>}
-    {vote.fragment?.text&&<div className="vc-frag" style={{borderColor:pC.l}}>«{vote.fragment.text.substring(0,50)}»</div>}
-    {vote.justification&&<div className="vc-just">«{vote.justification}»</div>}
+    <div className="vc-desc">
+      <span className="vc-player" style={{color:pC.l}}>{vote.initiatorName}</span>
+      <span>{isInt?' interrumpe con ':vote.type==='ending'?' intenta el final':' juega '}</span>
+      {vote.concept&&<span style={{color:TC[vote.concept.type]}}><strong>{TI[vote.concept.type]} {vote.concept.name}</strong> <small>({vote.concept.isInterruption?`↻ ${TL[vote.concept.type]}`:TL[vote.concept.type]})</small></span>}
+    </div>
+    {vote.fragment?.text&&<div className="vc-frag" style={{borderColor:pC.l}}>con «{vote.fragment.text.substring(0,80)}»</div>}
+    {vote.justification&&<div className="vc-just"><strong>Justificación:</strong> «{vote.justification}»</div>}
     {details.length>0&&<div className="vc-votes">{details.map((d,i)=>(
       <div key={i} className={`vc-vr ${d.approved?'vc-vr-yes':'vc-vr-no'}`}>
-        <span className="vc-vr-icon">{d.approved?'✓':'✗'}</span>
+        <span className="vc-vr-icon">{d.approved?'—':'✗'}</span>
         <span className="vc-vr-name">{d.name}</span>
         {d.reason&&<span className="vc-vr-reason">«{d.reason}»</span>}
       </div>))}</div>}
     <div className="vc-dots">{(vote.eligible||[]).map(pid=>{const v=vote.votedPlayerIds?.includes(pid);return <span key={pid} className={`vc-dot ${v?'voted':''} ${pid===myId?'me':''}`} style={v?{background:pC.l,borderColor:pC.l}:{}} title={players.find(p=>p.id===pid)?.name}/>})}</div>
     {canVote&&!isSpec&&<>
-      <input className="vc-reason" value={reason} onChange={e=>setReason(e.target.value)} placeholder="Motivo (opcional)" maxLength={80}/>
-      <div className="vc-btns"><button className="vc-yes" onClick={()=>submitVote(true)}>✓ APROBAR</button><button className="vc-no" onClick={()=>submitVote(false)}>✗ VETAR</button></div>
+      <input className="vc-reason" value={reason} onChange={e=>setReason(e.target.value)} placeholder="Motivo del veto (opcional)" maxLength={80}/>
+      <div className="vc-btns"><button className="vc-yes" onClick={()=>{onVote(true,'');setReason('');}}>OK</button><button className="vc-no" onClick={submitVeto}>✗ VETAR</button></div>
+      <div className="vc-hint2">Si nadie veta antes del tiempo, se aprueba</div>
     </>}
-    {hasVoted&&<div className="vc-wait">VOTADO ■</div>}
+    {hasVoted&&<div className="vc-wait">VETO ENVIADO ■</div>}
     {isSpec&&<div className="vc-wait">OBSERVANDO</div>}
   </div>);
 }
@@ -159,7 +176,7 @@ function InterruptWindow({iw,myHand,myId,narratorId,onUse,onDecline}){
 }
 
 // ═══ NARRATOR EDITOR — LOCAL STATE for responsive textarea ═══
-function NarratorEditor({story,integrations,sealedPos,frozenPos,pendingVote,players,activeCard,pendingSel,isVoting,isInterruptWindow,onUpdate,onTextSelected}){
+function NarratorEditor({story,integrations,sealedPos,frozenPos,pendingVote,players,activeCard,pendingSel,isVoting,isInterruptWindow,onUpdate,onTextSelected,isDraggingCard,onWordDrop,dragOverWord,setDragOverWord}){
   const frozen=frozenPos||0;
   const sealedText=(story||'').substring(0,frozen);
   const serverEditable=(story||'').substring(frozen);
@@ -191,7 +208,7 @@ function NarratorEditor({story,integrations,sealedPos,frozenPos,pendingVote,play
   },[frozen,story]);
 
   // Auto-focus textarea when this component mounts (narrator gained control)
-  useEffect(()=>{if(taRef.current)taRef.current.focus();},[]);
+  useEffect(()=>{if(taRef.current&&!isDraggingCard)taRef.current.focus();},[isDraggingCard]);
 
   function handleChange(e){
     const val=e.target.value;
@@ -208,17 +225,31 @@ function NarratorEditor({story,integrations,sealedPos,frozenPos,pendingVote,play
     if(idx>=0)onTextSelected({text,start:frozen+idx,end:frozen+idx+text.length});
   }
 
+  // Prevent textarea from accepting dropped content
+  function handleDragOver(e){if(isDraggingCard){e.preventDefault();e.dataTransfer.dropEffect='none';}}
+  function handleDrop(e){if(isDraggingCard){e.preventDefault();e.stopPropagation();}}
+
   return(<div className={`editor-wrap ${activeCard||pendingSel?'card-mode':''}`}>
-    {frozen>0&&(
+    {frozen>0&&!isDraggingCard&&(
       <div className="sealed-zone">
         <div className="sealed-header"><span className="sealed-icon">⚜</span><span className="sealed-label">TEXTO SELLADO</span>{enchCount>0&&<span className="sealed-count">{enchCount} carta{enchCount!==1?'s':''}</span>}</div>
-        <div className="sealed-body"><StoryWords text={sealedText} integrations={integrations} sealedPos={sealedPos} pendingVote={pendingVote} players={players}/></div>
+        <div className="sealed-body"><StoryWords text={sealedText} integrations={integrations} sealedPos={sealedPos} pendingVote={pendingVote} players={players} dropEnabled={isDraggingCard} onWordDrop={onWordDrop} dragOverWord={dragOverWord} setDragOverWord={setDragOverWord}/></div>
         <div className="seal-div">⚜ ═══════════════ ⚜</div>
       </div>)}
     {isVoting&&<div className="voting-indicator">⚖ VOTACIÓN EN CURSO — sigue escribiendo</div>}
     {isInterruptWindow&&<div className="voting-indicator iw-indicator">⚜ VENTANA DE INTERRUPCIÓN — sigue escribiendo</div>}
-    <textarea ref={taRef} className="editor-ta" value={localText} onChange={handleChange} onMouseUp={handleMouseUp}
-      placeholder={frozen>0?"Continúa la historia...":"Érase una vez..."} spellCheck={false}/>
+    <div style={{position:'relative',flex:1,display:'flex',flexDirection:'column'}}>
+      <textarea ref={taRef} className="editor-ta" value={localText} onChange={handleChange} onMouseUp={handleMouseUp}
+        onDragOver={handleDragOver} onDrop={handleDrop}
+        placeholder={frozen>0?"Continúa la historia...":"Érase una vez..."} spellCheck={false}
+        style={isDraggingCard?{opacity:0,position:'absolute',pointerEvents:'none'}:{}}/>
+      {isDraggingCard&&<div className="drag-overlay"
+        onDragOver={e=>{e.preventDefault();e.dataTransfer.dropEffect='move';}}
+        onDrop={e=>{e.preventDefault();e.stopPropagation();setDragOverWord?.(null);}}>
+        {localText?<StoryWords text={frozen>0?(sealedText+localText):localText} integrations={integrations} sealedPos={sealedPos} pendingVote={pendingVote} players={players} dropEnabled={true} onWordDrop={onWordDrop} dragOverWord={dragOverWord} setDragOverWord={setDragOverWord}/>
+        :<span className="ph" style={{pointerEvents:'none'}}>Escribe algo primero, luego arrastra...</span>}
+      </div>}
+    </div>
   </div>);
 }
 
@@ -254,6 +285,8 @@ export default function App(){
   const[isSpec,setIsSpec]=useState(false);
   const[sparkle,setSparkle]=useState(false);
   const[swappedId,setSwappedId]=useState(null);
+  const[isDraggingCard,setIsDraggingCard]=useState(false);
+  const[dragOverWord,setDragOverWord]=useState(null);
   const[showCfg,setShowCfg]=useState(false);
   const[popupTime,setPopupTime]=useState(0);const popupTimerRef=useRef(null);
   const[cardPreview,setCardPreview]=useState(null);
@@ -263,6 +296,10 @@ export default function App(){
   const[musicTrack,setMusicTrack]=useState('none');
   const[musicVol,setMusicVol]=useState(15);
   const[iwDismissed,setIwDismissed]=useState(false);
+  const[showVetoModal,setShowVetoModal]=useState(false);const[vetoReason,setVetoReason]=useState('');
+  const[rewindTarget,setRewindTarget]=useState(null);const rewindRef=useRef(null);
+  const[screenShake,setScreenShake]=useState(false);
+  const[confetti,setConfetti]=useState(false);
   const vrT=useRef(null);const prevNarr=useRef(null);
 
   useEffect(()=>()=>{clearPopupTimer();clearTimeout(vrT.current);stopMusic();},[]);
@@ -293,7 +330,7 @@ export default function App(){
       console.log('[narrator-changed] new narrator:',narratorName,'(',narratorId,')');
       // This fires BEFORE game-state for interrupts. Show immediate feedback.
     });
-    socket.on('vote-resolved',({type,approved,initiatorId,initiatorName,conceptName,conceptType,voters})=>{
+    socket.on('vote-resolved',({type,approved,initiatorId,initiatorName,conceptName,conceptType,conceptImg,voters})=>{
       const icon=conceptType?TI[conceptType]:'';const typeName=conceptType?TL[conceptType]:'';
       const cardStr=conceptName?` — ${icon} ${conceptName} (${typeName})`:'';
       // Vote result flash with voter breakdown
@@ -305,15 +342,35 @@ export default function App(){
       if(isMe&&!approved){
         if(type==='interrupt')showBanner('❌ Interrupción vetada — pierdes la carta y robas 2',4000);
         else if(type==='integrate')showBanner('❌ Carta vetada — no se integra',3000);
-        else if(type==='ending')showBanner('❌ Final rechazado — robas carta nueva',3500);
+        else if(type==='ending')showBanner('❌ Final rechazado — nuevo final + 1 carta narrativa',3500);
       }else if(isMe&&approved){
         if(type==='integrate')showBanner('✅ Carta integrada al relato',2500);
         else if(type==='interrupt')showBanner('✅ ¡Interrupción aceptada! Eres narrador',3000);
         else if(type==='ending')showBanner('🏆 ¡VICTORIA!',4000);
       }
-      if(approved){sfx('approved');setSparkle(true);setTimeout(()=>setSparkle(false),1800);}else sfx('denied');
+      if(approved){sfx('approved');setSparkle(true);setTimeout(()=>setSparkle(false),1800);
+        if(type==='integrate'){
+          // Direct DOM — bypasses React render cycle entirely
+          const color=TC[conceptType]||'#d4af37';
+          const sx=window.innerWidth-180,sy=window.innerHeight-200;
+          const dx=Math.round(window.innerWidth*0.3)-sx,dy=120-sy;
+          const el=document.createElement('div');el.className='card-fly';
+          el.style.cssText=`left:${sx}px;top:${sy}px;--fly-dx:${dx}px;--fly-dy:${dy}px;`;
+          if(conceptImg){const img=document.createElement('img');img.src='/cards/'+conceptImg;
+            img.style.cssText=`width:80px;height:110px;object-fit:cover;border-radius:3px;border:2px solid ${color};box-shadow:0 0 24px ${color};`;
+            el.appendChild(img);
+          }else{const b=document.createElement('div');b.style.cssText=`width:80px;height:110px;background:${color};border-radius:3px;border:2px solid #fff;box-shadow:0 0 24px ${color};`;el.appendChild(b);}
+          document.body.appendChild(el);
+          const fl=document.createElement('div');fl.className='card-fly-flash';
+          fl.style.cssText=`left:${sx+dx+40}px;top:${sy+dy+55}px;width:20px;height:20px;background:${color};animation-delay:.5s;`;
+          document.body.appendChild(fl);
+          setTimeout(()=>{el.remove();fl.remove();},1000);
+        }
+        if(type==='ending'){setConfetti(true);setTimeout(()=>setConfetti(false),4000);}
+      }else{sfx('denied');setScreenShake(true);setTimeout(()=>setScreenShake(false),450);}
     });
-    return()=>{['connect','disconnect','lobby-update','game-state','story-updated','vote-tick','interrupt-window-tick','inactivity-tick','narrator-changed','vote-resolved'].forEach(e=>socket.off(e));};
+    socket.on('story-rewind',({text})=>{setRewindTarget(text);});
+    return()=>{['connect','disconnect','lobby-update','game-state','story-updated','vote-tick','interrupt-window-tick','inactivity-tick','narrator-changed','vote-resolved','story-rewind'].forEach(e=>socket.off(e));};
   },[]);
 
   // ═══ EFFECTS — narrator change detection ═══
@@ -330,17 +387,35 @@ export default function App(){
     prevNarr.current=gs.narratorId;
   },[gs?.narratorId,myId,gs?.phase]);
   useEffect(()=>{if(myId&&roomCode)sessionStorage.setItem('ouat',JSON.stringify({myId,roomCode}));},[myId,roomCode]);
+  // ═══ VICTORY CONFETTI on game finish ═══
+  const prevPhaseRef=useRef(null);
+  useEffect(()=>{if(gs?.phase==='finished'&&prevPhaseRef.current==='playing'){setConfetti(true);setTimeout(()=>setConfetti(false),4000);sfx('approved');}prevPhaseRef.current=gs?.phase||null;},[gs?.phase]);
   useEffect(()=>{const s=sessionStorage.getItem('ouat');if(s){try{const d=JSON.parse(s);socket.emit('reconnect-player',{roomCode:d.roomCode,playerId:d.myId},r=>{if(r?.success){setMyId(d.myId);setRoomCode(d.roomCode);}else sessionStorage.removeItem('ouat');});}catch(e){sessionStorage.removeItem('ouat');}};},[]);
 
   // Reset dismiss when new interrupt window appears
   const prevIwRef=useRef(null);
   useEffect(()=>{if(gs?.interruptWindow&&!prevIwRef.current)setIwDismissed(false);prevIwRef.current=gs?.interruptWindow||null;},[gs?.interruptWindow]);
 
+  // ═══ STORY REWIND ANIMATION ═══
+  useEffect(()=>{
+    if(rewindTarget===null)return;
+    const target=rewindTarget;setRewindTarget(null);
+    // Animate by removing chars rapidly
+    const currentStory=gs?.story||'';
+    if(target.length>=currentStory.length){setGs(p=>p?{...p,story:target}:p);return;}
+    let idx=currentStory.length;
+    const step=()=>{if(idx<=target.length){clearInterval(rewindRef.current);rewindRef.current=null;setGs(p=>p?{...p,story:target}:p);return;}
+      idx=Math.max(target.length,idx-3);// 3 chars per tick for speed
+      setGs(p=>p?{...p,story:currentStory.substring(0,idx)}:p);};
+    rewindRef.current=setInterval(step,15);
+    return()=>{if(rewindRef.current){clearInterval(rewindRef.current);rewindRef.current=null;}};
+  },[rewindTarget]);
+
   const sealedPos=gs?.sealedPos||0;
   const frozenPos=gs?.frozenPos||0;
   const isNarr=gs&&gs.myId===gs.narratorId&&!isSpec;
   const isVoting=!!gs?.currentVote;
-  const myPriv=gs?.private;const handSize=gs?.config?.handSize||5;
+  const myPriv=gs?.private;const handSize=gs?.config?._effectiveHandSize||gs?.config?.handSize||5;
 
   // ═══ BIDIRECTIONAL: card→text OR text→card ═══
   function onCardClick(card){
@@ -364,6 +439,36 @@ export default function App(){
   }
   function clearSel(){setActiveCard(null);setPopup(null);setJust('');setPendingSel(null);setCardPreview(null);clearPopupTimer();}
 
+  // ═══ DRAG & DROP — card dropped on a word ═══
+  function onCardDrop(cardId,fragment){
+    setIsDraggingCard(false);setDragOverWord(null);
+    if(gs?.phase!=='playing')return;
+    if(gs.currentVote){notify('VOTO EN CURSO');return;}
+    if(gs.interruptWindow){notify('⚜ VENTANA DE INTERRUPCIÓN');return;}
+    const myHand=myPriv?.hand||[];
+    const card=myHand.find(c=>c.id===cardId);
+    if(!card){notify('Carta no encontrada');return;}
+    if(card.isEnding&&!isNarr){notify('SOLO EL NARRADOR USA EL FINAL');return;}
+    // Check sealed/enchanted
+    if(fragment.start<sealedPos){notify('⚜ TEXTO SELLADO — no jugable');return;}
+    const igs=gs.integrations||[];for(const ig of igs)if(fragment.start<ig.end&&fragment.end>ig.start){notify('✦ YA ENCANTADO');return;}
+    sfx('cardSelect');sfx('textSelect');
+    setActiveCard(card);
+    setPopup({card,fragment,action:isNarr?'integrate':'interrupt'});
+    startPopupTimer();
+  }
+
+  function handleCardDragStart(e,card){
+    e.dataTransfer.setData('cardId',card.id);
+    e.dataTransfer.effectAllowed='move';
+    // Create a small drag image
+    const el=e.target.cloneNode(true);el.style.cssText='width:80px;height:auto;opacity:0.8;position:absolute;top:-1000px;';
+    document.body.appendChild(el);e.dataTransfer.setDragImage(el,40,40);
+    setTimeout(()=>document.body.removeChild(el),0);
+    setIsDraggingCard(true);
+  }
+  function handleCardDragEnd(){setIsDraggingCard(false);setDragOverWord(null);}
+
   // ═══ ACTIONS ═══
   function doCreateRoom(name){if(!name)return notify('Escribe tu nombre');setMyName(name);socket.emit('create-room',{playerName:name},r=>{if(r.error)return notify(r.error);setMyId(r.playerId);setRoomCode(r.code);});}
   function joinRoom2(code,name){if(!name)return notify('Escribe tu nombre');if(!code)return notify('Escribe el código');setMyName(name);socket.emit('join-room',{roomCode:code,playerName:name},r=>{if(r.error)return notify(r.error);setMyId(r.playerId);setRoomCode(r.code);if(r.reconnected){notify('🔄 ¡Reconectado!',2000);setIsSpec(false);}else if(r.isSpectator)setIsSpec(true);});}
@@ -382,7 +487,8 @@ export default function App(){
     clearSel();
   }
   function doPass(id){sfx('swap');setSwappedId(id);setTimeout(()=>setSwappedId(null),1500);showBanner('↻ Pasas turno — descartas 1 carta, robas 1',3000);socket.emit('pass-turn',{discardConceptId:id},r=>{if(r?.error)notify(r.error);});setShowPass(false);}
-  function doVeto(){sfx('veto');socket.emit('veto-narrator',null,r=>{if(r?.error)notify(r.error);});}
+  function doVeto(){setShowVetoModal(true);setVetoReason('');}
+  function confirmVeto(reason){sfx('veto');socket.emit('veto-narrator',{reason:reason||vetoReason},r=>{if(r?.error)notify(r.error);});setShowVetoModal(false);setVetoReason('');}
   function doVote(a,reason){sfx('vote');socket.emit('cast-vote',{approve:a,reason:reason||''});}
   function useGoldenInterrupt(cardId){sfx('interrupt');setIwDismissed(true);socket.emit('use-interrupt-window',{conceptId:cardId},r=>{if(r?.error)notify(r.error);});}
   function declineInterrupt(){setIwDismissed(true);}
@@ -392,13 +498,22 @@ export default function App(){
   const isFinished=gs?.phase==='finished';
 
   // ═══ RENDER ═══
-  return(<div className="app"><div className="scanlines"/>
+  return(<div className={`app ${screenShake?'shake':''}`}><div className="scanlines"/>
     {notif&&<div className="notif">{notif}</div>}
     {vr&&<div className={`vote-flash ${vr.approved?'vf-yes':'vf-no'}`}><div>{vr.msg}</div>{vr.sub&&<div className="vf-sub">{vr.sub}</div>}</div>}
     {!connected&&<div className="conn-bar">◄ RECONECTANDO... ►</div>}
     {banner&&<div className="turn-banner-ov"><div className="turn-banner">{banner}</div></div>}
     {announce&&<div className="announce-ov"><div className="announce" style={{borderColor:announce.color}}><div className="ann-text">{announce.text}</div><div className="ann-sub" style={{color:announce.color}}>{announce.sub}</div></div></div>}
     {sparkle&&<div className="sparkle-ov">{Array.from({length:24}).map((_,i)=><div key={i} className="sparkle-p" style={{'--sx':(Math.random()*100)+'vw','--sy':(Math.random()*100)+'vh','--sd':(Math.random()*1.2+.4)+'s','--ss':(Math.random()*6+4)+'px'}}/>)}</div>}
+    {confetti&&<div className="confetti-ov">{Array.from({length:60}).map((_,i)=>{
+      const colors=['#d4af37','#f5e6a3','#b8860b','#ff6b6b','#4fc3f7','#81c784','#ce93d8','#fff'];
+      return<div key={i} className="confetti-piece" style={{
+        '--cx':(Math.random()*100)+'vw','--cc':colors[i%colors.length],
+        '--cd':(Math.random()*2+2)+'s','--cs':(Math.random()*1.5+1)+'s',
+        '--cr':(Math.random()*720+360)+'deg','--crx':(Math.random()*360)+'deg',
+        '--cw':(Math.random()*6+5)+'px','--ch':(Math.random()*8+6)+'px',
+        '--csw':(Math.random()*30+10)+'px',animationDelay:(Math.random()*1.5)+'s'
+      }}/>;})}</div>}
     {cardPreview&&<div className="cprev-ov"><div className="cprev" style={{'--tc':TC[cardPreview.type]}}>{cardPreview.img&&<img src={`/cards/${cardPreview.img}`} className="cprev-img" alt=""/>}<div className="cprev-name">{cardPreview.name}</div><div className="cprev-type">{cardPreview.isInterruption?wcLabel(cardPreview):TL[cardPreview.type]}</div></div></div>}
 
     {/* ═══ RULES MODAL ═══ */}
@@ -422,7 +537,12 @@ export default function App(){
           {isHost&&<>
             <button className="btn-ghost cfg-toggle" onClick={()=>setShowCfg(!showCfg)}>{showCfg?'▲ OCULTAR CONFIG':'▼ CONFIGURACIÓN'}</button>
             {showCfg&&<div className="cfg-panel">
-              <div className="cfg-row"><label>Cartas por jugador</label><input type="number" min="3" max="10" value={config.handSize||5} onChange={e=>updateConfig({handSize:+e.target.value})}/></div>
+              <div className="cfg-row"><label>Cartas por jugador</label>
+                <select value={config.handSize||'auto'} onChange={e=>updateConfig({handSize:e.target.value==='auto'?'auto':+e.target.value})}>
+                  <option value="auto">Auto ({players.length<=2?10:players.length===3?8:players.length===4?7:players.length===5?6:5})</option>
+                  {[3,4,5,6,7,8,9,10].map(n=><option key={n} value={n}>{n}</option>)}
+                </select>
+              </div>
               <div className="cfg-row"><label>Tiempo de voto (s)</label><input type="number" min="10" max="60" value={config.voteTime||20} onChange={e=>updateConfig({voteTime:+e.target.value})}/></div>
               <div className="cfg-row"><label>Inactividad máx (s)</label><input type="number" min="15" max="120" value={config.inactLimit||30} onChange={e=>updateConfig({inactLimit:+e.target.value})}/></div>
               <div className="cfg-row"><label>Ventana interrupción (s)</label><input type="number" min="4" max="15" value={config.interruptWindowTime||8} onChange={e=>updateConfig({interruptWindowTime:+e.target.value})}/></div>
@@ -458,7 +578,6 @@ export default function App(){
             <button className="bicon" onClick={()=>setShowRules(true)}>?</button>
             <div className="sound-wrap">
               <button className="bicon" onClick={()=>setShowSound(!showSound)} title={muted?'Activar sonido':'Sonido'}>{muted?'🔇':'🔊'}</button>
-              <button className="bicon" onClick={()=>{if(confirm('¿Salir al menú principal?'))goHome();}} title="Salir">✕</button>
               {showSound&&<div className="sound-menu" onClick={e=>e.stopPropagation()}>
                 <div className="sm-head">SONIDO</div>
                 <button className={`sm-mute ${muted?'on':''}`} onClick={doToggleMute}>{muted?'🔇 SILENCIADO':'🔊 ACTIVADO'}</button>
@@ -473,8 +592,11 @@ export default function App(){
               </div>}
             </div></div>
           <RankingBar players={gs.players} myId={gs.myId} handSize={handSize}/>
-          <div className="tbr"><span className="nl">NARR:</span><div className="nchip" style={{borderColor:pc(nIdx).bg}}><div className="avsm" style={{background:pc(nIdx).bg}}>{narrator?.name?.[0]}</div><span style={{color:pc(nIdx).l}}>{narrator?.name}</span></div></div></div>
+          <div className="tbr"><span className="nl">NARR:</span><div className="nchip nchip-glow" style={{borderColor:pc(nIdx).bg,'--nc':pc(nIdx).bg}}><div className="avsm" style={{background:pc(nIdx).bg}}>{narrator?.name?.[0]}</div><span style={{color:pc(nIdx).l}}>{narrator?.name}</span></div>
+            <button className="btn-exit" onClick={()=>{if(confirm('¿Salir al menú principal?'))goHome();}}>◄ SALIR</button></div></div>
 
+        {isDraggingCard&&!popup&&<div className="active-card-bar drag-hint" style={{borderColor:'#d4af37',background:'rgba(212,175,55,.1)'}}>
+          <span>🎯 <strong style={{color:'#d4af37'}}>ARRASTRA SOBRE UNA PALABRA</strong> de la historia para jugar la carta</span></div>}
         {(activeCard||pendingSel)&&!popup&&<div className="active-card-bar" style={{borderColor:activeCard?TC[activeCard.type]:pendingSel?'#fff':'var(--faint)'}}>
           {activeCard&&<><CardImg img={activeCard.img} size="sm"/><span>CARTA: <strong style={{color:TC[activeCard.type]}}>{TI[activeCard.type]} {activeCard.name}</strong> — SELECCIONA TEXTO</span></>}
           {!activeCard&&pendingSel&&<span>TEXTO: «{pendingSel.text.substring(0,30)}» — SELECCIONA UNA CARTA</span>}
@@ -488,9 +610,12 @@ export default function App(){
         <div className="gmain">
           <div className="scol"><div className="slbl story-lbl">HISTORIA</div>
             {isNarr
-              ?<NarratorEditor story={gs.story} integrations={gs.integrations} sealedPos={sealedPos} frozenPos={frozenPos} pendingVote={gs.currentVote} players={gs.players} activeCard={activeCard} pendingSel={pendingSel} isVoting={isVoting} isInterruptWindow={!!gs.interruptWindow} onUpdate={updateStory} onTextSelected={onTextSelected}/>
-              :(<div className={`sdisp ${activeCard||pendingSel?'card-mode':''}`} onMouseUp={handleReaderMouseUp}>
-                <StoryWords text={gs.story} integrations={gs.integrations} sealedPos={sealedPos} pendingVote={gs.currentVote} players={gs.players}/>
+              ?<NarratorEditor story={gs.story} integrations={gs.integrations} sealedPos={sealedPos} frozenPos={frozenPos} pendingVote={gs.currentVote} players={gs.players} activeCard={activeCard} pendingSel={pendingSel} isVoting={isVoting} isInterruptWindow={!!gs.interruptWindow} onUpdate={updateStory} onTextSelected={onTextSelected} isDraggingCard={isDraggingCard} onWordDrop={onCardDrop} dragOverWord={dragOverWord} setDragOverWord={setDragOverWord}/>
+              :(<div className={`sdisp ${activeCard||pendingSel?'card-mode':''} ${isDraggingCard?'drag-active':''}`} onMouseUp={handleReaderMouseUp}
+                onDragOver={e=>{if(isDraggingCard){e.preventDefault();e.dataTransfer.dropEffect='move';}}}
+                onDrop={e=>{if(isDraggingCard){e.preventDefault();setDragOverWord(null);}}}>
+                <StoryWords text={gs.story} integrations={gs.integrations} sealedPos={sealedPos} pendingVote={gs.currentVote} players={gs.players} dropEnabled={isDraggingCard} onWordDrop={onCardDrop} dragOverWord={dragOverWord} setDragOverWord={setDragOverWord}/>
+                {gs.story&&gs.phase==='playing'&&<span className="story-cursor"/>}
                 {!gs.story&&<span className="ph">...</span>}</div>)}
             {popup&&(<div className="ipopup">
               <div className="ip-card-vis" style={{'--tc':TC[popup.card.type]}}>{popup.card.img?<img src={`/cards/${popup.card.img}`} className="ipcv-img" alt=""/>:<div className="ipcv-top">{TI[popup.card.type]}</div>}<div className="ipcv-name">{popup.card.name}</div><div className="ipcv-type">{popup.card.isInterruption?wcLabel(popup.card):TL[popup.card.type]}</div></div>
@@ -501,13 +626,20 @@ export default function App(){
                 <div className="ip-btns"><button className="btn-sec" onClick={clearSel}>CANCELAR</button>
                   {popup.action==='integrate'&&<button className={`btn-int ${popup.card.isEnding?'end':''}`} onClick={doAction}>{popup.card.isEnding?'★ FINAL':'► JUGAR CARTA'}</button>}
                   {popup.action==='interrupt'&&<button className="btn-irpt" onClick={doAction}>⚡ INTERRUMPIR</button>}</div></div></div>)}
-            <ActionLog entries={gs.actionLog}/></div>
+            <div className="bottom-split">
+              <div className="bottom-log"><ActionLog entries={gs.actionLog}/></div>
+              <div className="bottom-play">
+                {isVoting&&gs.currentVote?<VoteCorner vote={gs.currentVote} players={gs.players} myId={gs.myId} onVote={doVote} isSpec={isSpec} config={gs.config}/>
+                :<div className="bp-idle">—</div>}
+              </div>
+            </div></div>
 
           <div className="span">
             {myPriv&&!isSpec&&<>
               <div className="slbl">CARTAS ({conceptCards.length}/{handSize})</div>
               <div className="hand">{conceptCards.map(c=>(
-                <div key={c.id} className={`gcard ${c.isInterruption?'gcard-interrupt':''} ${activeCard?.id===c.id?'active':''} ${swappedId===c.id?'swapped':''}`} style={{'--tc':c.isInterruption?'#d4af37':TC[c.type]}} onClick={()=>onCardClick(c)}>
+                <div key={c.id} className={`gcard ${c.isInterruption?'gcard-interrupt':''} ${activeCard?.id===c.id?'active':''} ${swappedId===c.id?'swapped':''}`} style={{'--tc':c.isInterruption?'#d4af37':TC[c.type]}}
+                  onClick={()=>onCardClick(c)} draggable="true" onDragStart={e=>handleCardDragStart(e,c)} onDragEnd={handleCardDragEnd}>
                   <div className="gc-face">{c.isInterruption&&<div className="gc-int-badge">⚜ INTERRUPCIÓN</div>}<CardImg img={c.img} size="lg"/><div className="gc-info"><div className="gc-name">{c.name}</div><div className="gc-type">{c.isInterruption?`↻ Comodín de ${TL[c.type]}`:TL[c.type]}</div></div><div className="gc-icon">{TI[c.type]}</div></div></div>))}
                 {!conceptCards.length&&<div className="empty-h">★ TODAS JUGADAS</div>}
                 {endingCard&&(<div className={`gcard ending-card ${activeCard?.id===endingCard.id?'active':''} ${!allDone?'locked':''}`} style={{'--tc':'#d4af37'}}
@@ -521,6 +653,16 @@ export default function App(){
               {showPass&&<div className="pass-ov"><div className="pass-mod"><div className="pm-t">↻ DESCARTA UNA CARTA</div>
                 <div className="pm-cards">{conceptCards.map(c=>(<div key={c.id} className="gcard disc" style={{'--tc':TC[c.type]}} onClick={()=>doPass(c.id)}><div className="gc-face"><CardImg img={c.img} size="md"/><div className="gc-info"><div className="gc-name">{c.name}</div></div></div></div>))}</div>
                 <button className="btn-sec" onClick={()=>setShowPass(false)}>CANCELAR</button></div></div>}
+              {showVetoModal&&<div className="pass-ov"><div className="pass-mod veto-mod">
+                <div className="pm-t">🚫 VETAR NARRADOR</div>
+                <div className="veto-reasons">
+                  {['No para de desvariar','Escribe cosas sin sentido','Juega cartas sin justificarlas','Ignora la historia','No respeta el turno','Está AFK / inactivo'].map(r=>(
+                    <button key={r} className={`veto-reason-btn ${vetoReason===r?'vr-sel':''}`} onClick={()=>setVetoReason(vetoReason===r?'':r)}>{r}</button>))}
+                </div>
+                <input className="veto-custom" value={vetoReason} onChange={e=>setVetoReason(e.target.value)} placeholder="O escribe tu motivo..." maxLength={80}/>
+                <div className="ip-btns"><button className="btn-sec" onClick={()=>setShowVetoModal(false)}>CANCELAR</button>
+                  <button className="btn-veto" disabled={!vetoReason.trim()} onClick={()=>confirmVeto()}>🚫 ENVIAR VETO</button></div>
+              </div></div>}
             </>}
             {isSpec&&<div className="spec-n">◄ ESPECTADOR ►</div>}
             <div className="slbl" style={{marginTop:8}}>PLAYERS</div>
@@ -528,10 +670,6 @@ export default function App(){
           </div>
         </div>
 
-        {/* ═══ VOTE CORNER — ALWAYS visible during votes ═══ */}
-        {isVoting&&gs.currentVote&&<VoteCorner vote={gs.currentVote} players={gs.players} myId={gs.myId} onVote={doVote} isSpec={isSpec} config={gs.config}/>}
-        {/* ═══ FLOATING CARD — tracks pending words ═══ */}
-        {isVoting&&gs.currentVote&&<FloatingCardOverlay vote={gs.currentVote} players={gs.players}/>}
         {/* ═══ GOLDEN INTERRUPT WINDOW ═══ */}
         {gs.interruptWindow&&!isSpec&&!iwDismissed&&<InterruptWindow iw={gs.interruptWindow} myHand={myPriv?.hand} myId={gs.myId} narratorId={gs.narratorId} onUse={useGoldenInterrupt} onDecline={declineInterrupt}/>}
       </div>);})()}
@@ -550,7 +688,7 @@ export default function App(){
     {screen==='projector'&&gs&&(()=>{const n=gs.players?.find(p=>p.id===gs.narratorId);const sp=gs.sealedPos||0;
       return(<div className="proj"><div className="ptop"><h1 className="pttl">ONCE UPON A TIME</h1><span className="rbdg">{gs.code}</span><div className="ppnarr">✍ {n?.name}</div></div>
         <div className="pplayers">{gs.players?.map((p,i)=>(<div key={p.id} className={`pp ${p.id===gs.narratorId?'ppact':''}`}><div className="av" style={{background:pc(i).bg}}>{p.name[0]}</div><span>{p.name}</span><span className="ppst">{p.handCount}■</span></div>))}</div>
-        <div className="pstory"><StoryWords text={gs.story} integrations={gs.integrations} sealedPos={sp} pendingVote={gs.currentVote} players={gs.players}/>{!gs.story&&<span className="ph">...</span>}</div>
+        <div className="pstory"><StoryWords text={gs.story} integrations={gs.integrations} sealedPos={sp} pendingVote={gs.currentVote} players={gs.players}/>{gs.story&&gs.phase==='playing'&&<span className="story-cursor"/>}{!gs.story&&<span className="ph">...</span>}</div>
         {gs.currentVote&&<div className="pvote">⚖ VOTACIÓN — {gs.currentVote.timeLeft}s</div>}
         {gs.currentVote&&<FloatingCardOverlay vote={gs.currentVote} players={gs.players}/>}
         <ActionLog entries={gs.actionLog}/></div>);})()}
