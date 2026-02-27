@@ -146,7 +146,7 @@ function VoteCorner({vote,players,myId,onVote,isSpec,config}){
       <div className="vc-btns"><button className="vc-yes" onClick={()=>{onVote(true,'');setReason('');}}>OK</button><button className="vc-no" onClick={submitVeto}>✗ VETAR</button></div>
       <div className="vc-hint2">Si nadie veta antes del tiempo, se aprueba</div>
     </>}
-    {hasVoted&&<div className="vc-wait">VETO ENVIADO ■</div>}
+    {hasVoted&&<div className="vc-wait">{vote.voteDetails?.find(d=>d.id===myId)?.approved?'VOTO ENVIADO ✓':'VETO ENVIADO ■'}</div>}
     {isSpec&&<div className="vc-wait">OBSERVANDO</div>}
   </div>);
 }
@@ -188,8 +188,16 @@ function NarratorEditor({story,integrations,sealedPos,frozenPos,pendingVote,play
   const lastSentRef=useRef(serverEditable);
   const prevFrozenRef=useRef(frozen);
 
-  // Sync from server when text changes externally
+  // Sync from server when text changes externally (another client edited)
+  // Use a flag to distinguish our own echoes from real external changes
+  const isLocalChangeRef=useRef(false);
   useEffect(()=>{
+    if(isLocalChangeRef.current){
+      // This is our own echo from the server — skip overwrite
+      isLocalChangeRef.current=false;
+      lastSentRef.current=serverEditable;
+      return;
+    }
     if(serverEditable!==lastSentRef.current){
       setLocalText(serverEditable);
       lastSentRef.current=serverEditable;
@@ -215,6 +223,7 @@ function NarratorEditor({story,integrations,sealedPos,frozenPos,pendingVote,play
     setLocalText(val);
     const fullText=sealedText+val;
     lastSentRef.current=val;
+    isLocalChangeRef.current=true;
     onUpdate(fullText);
   }
 
