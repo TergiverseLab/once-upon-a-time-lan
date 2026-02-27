@@ -115,6 +115,7 @@ function FloatingCardOverlay({vote,players}){
 // ═══ VOTE CORNER — inline below log, veto-only ═══
 function VoteCorner({vote,players,myId,onVote,isSpec,config}){
   const[reason,setReason]=useState('');
+  const[myVote,setMyVote]=useState(null);
   const canVote=vote.eligible?.includes(myId)&&!vote.votedPlayerIds?.includes(myId);
   const hasVoted=vote.votedPlayerIds?.includes(myId);
   const labs={integrate:'JUGAR CARTA',interrupt:'INTERRUPCIÓN',ending:'FINAL'};
@@ -123,7 +124,9 @@ function VoteCorner({vote,players,myId,onVote,isSpec,config}){
   const iIdx=players.findIndex(p=>p.id===vote.initiatorId);
   const pC=iIdx>=0?pc(iIdx):pc(0);const isInt=vote.type==='interrupt';
   const details=vote.voteDetails||[];
-  function submitVeto(){onVote(false,reason.trim());setReason('');}
+  function submitApprove(){setMyVote(true);onVote(true,'');setReason('');}
+  function submitVeto(){setMyVote(false);onVote(false,reason.trim());setReason('');}
+  const didApprove=myVote===true||(hasVoted&&vote.voteDetails?.find(d=>d.id===myId)?.approved===true);
   return(<div className={`vcorner ${isInt?'vc-int':''}`} style={{'--vpc':pC.l,'--vpbg':pC.bg}}>
     <div className="vc-bar"><div className="vc-bar-fill" style={{width:tP+'%',background:tP<30?'#ff1744':tP<60?'#ff9100':pC.l}}/></div>
     <div className="vc-head"><span className="vc-type" style={{color:isInt?'#ef9a9a':vote.type==='ending'?'var(--gold)':'#81c784'}}>{labs[vote.type]||'CARTA'}</span>{vote.round===2&&<span className="vc-tie">DESEMPATE</span>}<span className="vc-time" style={{color:tP<30?'#ff1744':pC.l}}>{vote.timeLeft}s</span></div>
@@ -143,10 +146,10 @@ function VoteCorner({vote,players,myId,onVote,isSpec,config}){
     <div className="vc-dots">{(vote.eligible||[]).map(pid=>{const v=vote.votedPlayerIds?.includes(pid);return <span key={pid} className={`vc-dot ${v?'voted':''} ${pid===myId?'me':''}`} style={v?{background:pC.l,borderColor:pC.l}:{}} title={players.find(p=>p.id===pid)?.name}/>})}</div>
     {canVote&&!isSpec&&<>
       <input className="vc-reason" value={reason} onChange={e=>setReason(e.target.value)} placeholder="Motivo del veto (opcional)" maxLength={80}/>
-      <div className="vc-btns"><button className="vc-yes" onClick={()=>{onVote(true,'');setReason('');}}>OK</button><button className="vc-no" onClick={submitVeto}>✗ VETAR</button></div>
+      <div className="vc-btns"><button className="vc-yes" onClick={submitApprove}>OK</button><button className="vc-no" onClick={submitVeto}>✗ VETAR</button></div>
       <div className="vc-hint2">Si nadie veta antes del tiempo, se aprueba</div>
     </>}
-    {hasVoted&&<div className="vc-wait">{vote.voteDetails?.find(d=>d.id===myId)?.approved?'VOTO ENVIADO ✓':'VETO ENVIADO ■'}</div>}
+    {hasVoted&&<div className="vc-wait">{didApprove?'VOTO ENVIADO ✓':'VETO ENVIADO ■'}</div>}
     {isSpec&&<div className="vc-wait">OBSERVANDO</div>}
   </div>);
 }
