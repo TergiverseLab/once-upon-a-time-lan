@@ -328,7 +328,10 @@ export default function App(){
 
   // ═══ SOCKET LISTENERS ═══
   useEffect(()=>{
-    socket.on('connect',()=>setConnected(true));socket.on('disconnect',()=>setConnected(false));
+    socket.on('connect',()=>{setConnected(true);
+      // Auto-reconnect to room on socket reconnection (network drop)
+      const s=localStorage.getItem('ouat');if(s){try{const d=JSON.parse(s);socket.emit('reconnect-player',{roomCode:d.roomCode,playerId:d.myId},r=>{if(r?.success){setMyId(d.myId);setRoomCode(d.roomCode);}});}catch(e){}}
+    });socket.on('disconnect',()=>setConnected(false));
     socket.on('lobby-update',d=>{setLobbyData({players:d.players,config:d.config||{}});setRoomCode(d.code);setScreen('lobby');});
     socket.on('game-state',state=>{
       console.log('[game-state] narratorId=',state.narratorId,'myId=',state.myId,'frozenPos=',state.frozenPos,'sealedPos=',state.sealedPos,'integrations=',state.integrations?.length,'vote=',state.currentVote?.type||'none');
@@ -398,11 +401,11 @@ export default function App(){
     }
     prevNarr.current=gs.narratorId;
   },[gs?.narratorId,myId,gs?.phase]);
-  useEffect(()=>{if(myId&&roomCode)sessionStorage.setItem('ouat',JSON.stringify({myId,roomCode}));},[myId,roomCode]);
+  useEffect(()=>{if(myId&&roomCode)localStorage.setItem('ouat',JSON.stringify({myId,roomCode}));},[myId,roomCode]);
   // ═══ VICTORY CONFETTI on game finish ═══
   const prevPhaseRef=useRef(null);
   useEffect(()=>{if(gs?.phase==='finished'&&prevPhaseRef.current==='playing'){setConfetti(true);setTimeout(()=>setConfetti(false),4000);sfx('approved');}prevPhaseRef.current=gs?.phase||null;},[gs?.phase]);
-  useEffect(()=>{const s=sessionStorage.getItem('ouat');if(s){try{const d=JSON.parse(s);socket.emit('reconnect-player',{roomCode:d.roomCode,playerId:d.myId},r=>{if(r?.success){setMyId(d.myId);setRoomCode(d.roomCode);}else sessionStorage.removeItem('ouat');});}catch(e){sessionStorage.removeItem('ouat');}};},[]);
+  useEffect(()=>{const s=localStorage.getItem('ouat');if(s){try{const d=JSON.parse(s);socket.emit('reconnect-player',{roomCode:d.roomCode,playerId:d.myId},r=>{if(r?.success){setMyId(d.myId);setRoomCode(d.roomCode);}else localStorage.removeItem('ouat');});}catch(e){localStorage.removeItem('ouat');}};},[]);
 
   // Reset dismiss when new interrupt window appears
   const prevIwRef=useRef(null);
@@ -488,7 +491,7 @@ export default function App(){
   function doStart(){socket.emit('start-game',null,r=>{if(r?.error)notify(r.error);});}
   function updateStory(text){socket.emit('story-update',{text});}
   function updateConfig(cfg){socket.emit('update-config',{config:cfg},r=>{if(r?.error)notify(r.error);else notify('✅ CONFIG OK',1500);});}
-  function goHome(){stopMusic();socket.emit('leave-room');setScreen('home');setGs(null);setIsSpec(false);setShowSound(false);setShowCfg(false);sessionStorage.removeItem('ouat');}
+  function goHome(){stopMusic();socket.emit('leave-room');setScreen('home');setGs(null);setIsSpec(false);setShowSound(false);setShowCfg(false);localStorage.removeItem('ouat');}
   function doAction(){
     if(!popup)return;const data={conceptId:popup.card.id,fragment:popup.fragment,justification:just.trim()};
     console.log('[doAction]',popup.action,'card=',popup.card.name,'fragment=',popup.fragment);

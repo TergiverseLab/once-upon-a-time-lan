@@ -7,8 +7,9 @@ const URL = import.meta.env.DEV ? undefined : window.location.origin;
 const socket = io(URL, {
   autoConnect: true,
   reconnection: true,
-  reconnectionAttempts: 10,
+  reconnectionAttempts: Infinity,
   reconnectionDelay: 1000,
+  reconnectionDelayMax: 5000,
 });
 
 export default socket;
