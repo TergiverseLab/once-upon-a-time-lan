@@ -555,7 +555,7 @@ body{font-family:var(--vt);background:var(--bg);color:var(--txt);-webkit-font-sm
 
 /* ═══ TUTORIAL ═══ */
 .tut-overlay{position:fixed;inset:0;z-index:5000;background:rgba(0,0,0,.92);display:flex;flex-direction:column;overflow:hidden;animation:fadeIn .3s ease;}
-.tut-scene{flex:1;display:flex;flex-direction:column;overflow:hidden;padding:8px 12px;min-height:0;}
+.tut-scene{flex:1;display:flex;flex-direction:column;overflow:hidden;padding:8px 12px;min-height:0;position:relative;}
 .tut-topbar{display:flex;align-items:center;gap:10px;padding:8px 12px;background:rgba(0,0,0,.6);border:1px solid var(--faint);margin-bottom:8px;flex-wrap:wrap;transition:box-shadow .3s,border-color .3s;}
 .tut-topbar-left{display:flex;align-items:center;gap:8px;}
 .tut-ranking{display:flex;gap:8px;flex:1;justify-content:center;}
@@ -578,19 +578,76 @@ body{font-family:var(--vt);background:var(--bg);color:var(--txt);-webkit-font-sm
 .tut-hl-el::after{content:'';position:absolute;inset:-3px;border:2px solid var(--gold);pointer-events:none;animation:tutPulse 2s ease infinite;}
 @keyframes tutPulse{0%,100%{box-shadow:0 0 12px rgba(212,175,55,.2);}50%{box-shadow:0 0 24px rgba(212,175,55,.5);}}
 
-/* Tutorial simulated vote */
-.tut-vote-sim{position:absolute;bottom:60px;left:50%;transform:translateX(-50%);background:#0a0a12;border:2px solid var(--gold);padding:12px 20px;text-align:center;animation:tutPulse 2s ease infinite;z-index:5001;}
+/* Tutorial arrows */
+.tut-arrow{position:absolute;display:flex;flex-direction:column;align-items:center;pointer-events:none;z-index:10;filter:drop-shadow(0 0 6px rgba(212,175,55,.6));}
+.tut-arrow-down{bottom:-38px;left:50%;transform:translateX(-50%);}
+.tut-arrow-up{top:-38px;left:50%;transform:translateX(-50%);}
+.tut-arrow-left{right:-10px;top:50%;transform:translateY(-50%) rotate(-90deg);}
+.tut-arrow-head{font-size:18px;color:var(--gold);animation:tutArrowBounce 1s ease infinite;}
+.tut-arrow-up .tut-arrow-head{transform:rotate(180deg);}
+.tut-arrow-label{font-family:var(--px);font-size:7px;color:var(--gold);white-space:nowrap;letter-spacing:1px;margin-top:2px;}
+@keyframes tutArrowBounce{0%,100%{transform:translateY(0);}50%{transform:translateY(6px);}}
+.tut-arrow-up .tut-arrow-head{animation:tutArrowBounceUp 1s ease infinite;}
+@keyframes tutArrowBounceUp{0%,100%{transform:rotate(180deg) translateY(0);}50%{transform:rotate(180deg) translateY(6px);}}
+
+/* Tutorial simulated timers */
+.tut-timers-sim{display:flex;flex-direction:column;gap:6px;margin-bottom:8px;animation:fadeIn .3s ease;}
+.tut-timer-row{display:flex;align-items:center;gap:8px;padding:6px 12px;background:rgba(0,0,0,.5);border:1px solid var(--faint);}
+.tut-timer-label{font-family:var(--px);font-size:7px;color:var(--dim);letter-spacing:1px;min-width:100px;}
+.tut-timer-num{font-family:var(--px);font-size:14px;color:var(--gold);min-width:40px;text-align:center;}
+.tut-timer-track{flex:1;height:6px;background:rgba(255,255,255,.05);overflow:hidden;}
+.tut-timer-fill{height:100%;transition:width .3s;}
+
+/* Tutorial sealed note */
+.tut-sealed-note{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:6px;padding:6px 14px;background:rgba(0,0,0,.85);border:1px solid var(--gold);font-family:var(--px);font-size:7px;color:var(--gold);letter-spacing:1px;white-space:nowrap;}
+.tut-sealed-note strong{color:#fff;}
+
+/* Tutorial drag animation */
+.tut-drag-anim{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);display:flex;align-items:center;gap:12px;padding:12px 20px;background:rgba(0,0,0,.9);border:2px solid var(--gold);animation:fadeIn .3s ease;}
+.tut-drag-card{font-family:var(--px);font-size:9px;color:#c2185b;padding:8px 12px;border:2px solid #c2185b;background:rgba(194,24,91,.1);animation:tutDragCard 2.5s ease infinite;}
+.tut-drag-path{width:40px;height:2px;background:var(--gold);position:relative;}
+.tut-drag-path::after{content:'►';position:absolute;right:-8px;top:-8px;color:var(--gold);font-size:14px;animation:tutDragArrow 2.5s ease infinite;}
+.tut-drag-target{font-family:var(--vt);font-size:16px;color:#c2185b;padding:4px 8px;border:2px dashed #c2185b;animation:tutPulse 2s ease infinite;}
+@keyframes tutDragCard{0%,100%{transform:translateX(0);}50%{transform:translateX(12px);}}
+@keyframes tutDragArrow{0%,100%{transform:translateX(0);}50%{transform:translateX(6px);}}
+
+/* Tutorial interrupt simulation */
+.tut-interrupt-sim{position:absolute;bottom:8px;left:8px;right:8px;display:flex;flex-direction:column;gap:4px;padding:8px 12px;background:rgba(0,0,0,.9);border:1px solid #ff9100;}
+.tut-int-typing{font-family:var(--vt);font-size:14px;color:var(--dim);}
+.tut-int-action{font-family:var(--px);font-size:8px;color:#ff9100;animation:blink8 1.5s step-end infinite;}
+
+/* Tutorial ending card (full-width rectangle) */
+.tut-ending-full{margin-top:8px;padding:10px 14px;border:2px solid var(--gold);background:rgba(212,175,55,.05);display:flex;align-items:center;gap:10px;position:relative;transition:box-shadow .3s,border-color .3s;}
+.tut-ending-locked{opacity:.6;border-color:var(--faint);}
+.tut-ending-unlocked{animation:tutPulse 2s ease infinite;box-shadow:0 0 20px rgba(212,175,55,.3);}
+.tut-ending-star{font-size:24px;flex-shrink:0;}
+.tut-ending-label{font-family:var(--px);font-size:9px;color:var(--gold);letter-spacing:2px;flex-shrink:0;}
+.tut-ending-text{font-family:var(--vt);font-size:14px;color:var(--txt);flex:1;line-height:1.3;}
+
+/* Tutorial simulated vote — positioned in the scene, not overlapping dialog */
+.tut-vote-sim{position:absolute;top:50%;left:30%;transform:translate(-50%,-50%);background:#0a0a12;border:2px solid var(--gold);padding:14px 22px;text-align:center;animation:tutPulse 2s ease infinite;z-index:5001;box-shadow:0 0 40px rgba(212,175,55,.2);}
 .tut-vote-head{font-family:var(--px);font-size:9px;color:var(--gold);letter-spacing:2px;margin-bottom:6px;}
 .tut-vote-body{font-family:var(--vt);font-size:16px;color:var(--txt);margin-bottom:8px;}
-.tut-vote-btns{display:flex;gap:8px;justify-content:center;}
+.tut-vote-btns{display:flex;gap:8px;justify-content:center;margin-bottom:6px;}
 .tut-vb-yes{padding:5px 16px;background:rgba(76,175,80,.15);border:1px solid #4caf50;color:#81c784;font-family:var(--px);font-size:8px;}
 .tut-vb-no{padding:5px 16px;background:rgba(229,57,53,.1);border:1px solid #e53935;color:#ef9a9a;font-family:var(--px);font-size:8px;}
+.tut-vote-note{font-family:var(--px);font-size:7px;color:var(--dim);letter-spacing:1px;}
+
+/* Tutorial golden interrupt sim */
+.tut-golden-sim{position:absolute;top:50%;left:30%;transform:translate(-50%,-50%);background:#0a0a12;border:2px solid #d4af37;padding:16px 24px;text-align:center;z-index:5001;box-shadow:0 0 60px rgba(212,175,55,.3);animation:fadeIn .3s ease;}
+.tut-golden-glow{position:absolute;inset:-2px;border:2px solid var(--gold);animation:tutPulse 1.5s ease infinite;pointer-events:none;}
+.tut-golden-head{font-family:var(--px);font-size:10px;color:var(--gold);letter-spacing:2px;margin-bottom:8px;}
+.tut-golden-body{font-family:var(--vt);font-size:16px;color:var(--txt);margin-bottom:4px;}
+.tut-golden-sub{font-family:var(--vt);font-size:14px;color:var(--gold);margin-bottom:10px;}
+.tut-golden-btn{display:inline-block;padding:8px 20px;background:linear-gradient(180deg,var(--gold),var(--gd));color:#000;font-family:var(--px);font-size:8px;font-weight:700;letter-spacing:1px;}
 
 /* Tutorial victory sim */
 .tut-victory-sim{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;animation:fadeIn .5s ease;z-index:5001;}
 .tut-vic-crown{font-size:48px;animation:quillWrite 2s steps(6) infinite;}
 .tut-vic-title{font-family:var(--disp);font-size:28px;background:linear-gradient(180deg,var(--gl),var(--gold));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
 .tut-vic-name{font-family:var(--vt);font-size:24px;margin-top:6px;}
+.tut-vic-ranking{margin-top:12px;text-align:left;}
+.tut-vic-row{font-family:var(--vt);font-size:16px;color:var(--txt);padding:3px 0;}
 
 /* Tutorial dialog */
 .tut-dialog{background:#0a0a12;border-top:3px solid var(--gold);padding:16px 24px;box-shadow:0 -10px 40px rgba(0,0,0,.8);max-height:40vh;overflow-y:auto;}
@@ -612,4 +669,6 @@ body{font-family:var(--vt);background:var(--bg);color:var(--txt);-webkit-font-sm
   .tut-dialog{padding:12px 16px;}
   .tut-title{font-size:10px;}
   .tut-body{font-size:16px;}
+  .tut-vote-sim,.tut-golden-sim{left:50%;}
+  .tut-arrow-label{font-size:6px;}
 }

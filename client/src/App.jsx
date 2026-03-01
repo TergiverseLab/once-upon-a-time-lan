@@ -64,52 +64,42 @@ const TUTORIAL_HAND=[
 ];
 const TUTORIAL_ENDING={id:'te1',name:'Y vivieron felices para siempre.',text:'Y vivieron felices para siempre.',type:'ending',isInterruption:false,isEnding:true};
 const TUTORIAL_STEPS=[
-  {title:'BIENVENIDO AL TUTORIAL',
-   body:'Esto es <strong>Once Upon a Time</strong>, un juego de cartas donde creas historias entre todos. Vamos a simular una partida para que aprendas las mecánicas.',
-   highlight:null,zone:null},
-  {title:'TUS CARTAS',
-   body:'Estas son tus cartas narrativas. Cada una tiene un <strong>tipo</strong>: 👤 Personaje, 🏰 Lugar, 💎 Objeto, ✨ Aspecto o ⚡ Acontecimiento. Tu objetivo es mencionarlas <strong>todas</strong> en la historia.',
-   highlight:'hand',zone:'cards'},
-  {title:'CARTA DE FINAL',
-   body:'Tu carta dorada es tu <strong>Final secreto</strong>. Solo podrás jugarla cuando hayas usado todas tus cartas narrativas. ¡La historia debe desembocar en tu final para ganar!',
-   highlight:'ending',zone:'cards'},
-  {title:'EL NARRADOR',
-   body:'El jugador con el icono ✍ es el <strong>narrador</strong>. Solo él puede escribir en la historia. Los demás observan y pueden interrumpir.',
-   highlight:'narrator',zone:'topbar'},
-  {title:'ESCRIBIR LA HISTORIA',
-   body:'Cuando eres narrador, escribes libremente en el área de texto. La historia crece con cada turno. El texto <strong>sellado</strong> (ya jugado) no se puede borrar.',
-   highlight:'story',zone:'story'},
-  {title:'JUGAR UNA CARTA',
-   body:'Para jugar una carta: <strong>1)</strong> Haz clic en la carta, <strong>2)</strong> selecciona las palabras en la historia que se relacionan. También puedes <strong>arrastrar</strong> la carta directamente sobre una palabra.',
-   highlight:'hand',zone:'cards'},
-  {title:'VOTACIÓN',
-   body:'Cuando alguien juega una carta, los demás <strong>votan</strong>. Si nadie veta antes del tiempo, se aprueba automáticamente. Se necesita mayoría para vetar. El narrador sigue escribiendo durante la votación.',
-   highlight:'vote',zone:'bottom'},
-  {title:'INTERRUPCIÓN',
-   body:'Si <strong>no eres narrador</strong>, puedes interrumpir seleccionando texto + tu carta. Si se aprueba, ¡te conviertes en narrador! Si se rechaza, pierdes la carta y robas 1.',
-   highlight:'hand',zone:'cards'},
-  {title:'INTERRUPCIÓN DORADA ⚜',
-   body:'Las cartas con el símbolo <strong>↻</strong> son <strong>comodines de interrupción</strong>. Cuando el narrador juega una carta del mismo tipo, aparece una ventana especial para interrumpir <strong>sin votación</strong>.',
-   highlight:'interrupt-card',zone:'cards'},
-  {title:'PASAR TURNO',
-   body:'Si no puedes o no quieres narrar, pulsa <strong>↻ PASAR</strong>. Descartas una carta y robas otra nueva. El turno pasa al siguiente jugador.',
-   highlight:'pass',zone:'actions'},
-  {title:'VETAR AL NARRADOR',
-   body:'Si no eres narrador, puedes <strong>vetar</strong> con un motivo. Cuando la mitad de los jugadores velan, el narrador pierde turno y roba 1 carta de penalización.',
-   highlight:'veto',zone:'actions'},
-  {title:'JUGAR EL FINAL',
-   body:'Cuando hayas jugado <strong>todas</strong> tus cartas narrativas, tu carta de Final se desbloquea. Escribe la historia para que lleve a tu final, selecciona texto y juégala. ¡Los demás votarán si tiene sentido!',
-   highlight:'ending',zone:'cards'},
-  {title:'¡VICTORIA!',
-   body:'Si tu final es aprobado, <strong>¡ganas!</strong> Se muestra un ranking con los jugadores ordenados por cartas restantes. El que menos cartas tiene, mejor posición.',
-   highlight:null,zone:null},
-  {title:'TEMPORIZADORES',
-   body:'Hay dos temporizadores para el narrador: uno de <strong>inactividad</strong> (si no escribes, pierdes turno) y otro de <strong>límite para jugar carta</strong> (barra morada). ¡No te duermas!',
-   highlight:'timers',zone:'topbar'},
-  {title:'¡LISTO!',
-   body:'Ya conoces todas las mecánicas. ¡Crea una sala, invita a tus amigos y que empiece la historia!',
-   highlight:null,zone:null},
+  {id:'welcome',title:'BIENVENIDO AL TUTORIAL',
+   body:'Esto es <strong>Once Upon a Time</strong>, un juego de cartas donde creas historias entre todos.<br><br>Cada jugador tiene cartas narrativas y una carta de Final secreta. El objetivo: mencionar todas tus cartas en la historia y llevarla a tu final.'},
+  {id:'cards',title:'TUS CARTAS NARRATIVAS',
+   body:'Estas son tus cartas. Cada una tiene un <strong>tipo</strong>:<br>👤 Personaje · 🏰 Lugar · 💎 Objeto · ✨ Aspecto · ⚡ Acontecimiento<br><br>Tu objetivo es mencionar <strong>todas</strong> en la historia para poder jugarlas. La carta con ⚜ es especial (la veremos luego).'},
+  {id:'ending',title:'TU CARTA DE FINAL',
+   body:'Tu carta dorada es tu <strong>Final secreto</strong> 🔒. Está bloqueada hasta que juegues todas tus cartas narrativas. La historia que escribas debe desembocar en tu final para poder ganar.'},
+  {id:'timers',title:'TEMPORIZADORES',
+   body:'El narrador tiene <strong>dos temporizadores</strong>:<br><br>⏱ <strong>Inactividad</strong> (barra superior): si no escribes, pierdes turno.<br>🟣 <strong>Límite para jugar carta</strong> (barra morada): si no juegas una carta antes de que se acabe, pierdes turno.<br><br>¡No te duermas!'},
+  {id:'narrator',title:'EL NARRADOR',
+   body:'El jugador con el icono <strong>✍</strong> es el narrador. Solo él puede escribir la historia. Los demás observan y pueden interrumpir o vetar.'},
+  {id:'story',title:'ESCRIBIR LA HISTORIA',
+   body:'Cuando eres narrador, escribes libremente en el área de texto. Fíjate en las palabras de colores: son texto <strong>sellado</strong> (vinculado a cartas ya jugadas). El texto sellado <strong>no se puede borrar ni editar</strong> — aparece con un tono más oscuro.'},
+  {id:'play-card',title:'JUGAR UNA CARTA',
+   body:'Hay 3 formas de jugar una carta:<br><br><strong>① Click carta → selecciona texto:</strong> Haz clic en tu carta, luego selecciona palabras de la historia.<br><strong>② Selecciona texto → click carta:</strong> Selecciona texto primero, luego haz clic en la carta.<br><strong>③ Arrastra la carta</strong> directamente sobre una palabra de la historia.'},
+  {id:'vote',title:'VOTACIÓN',
+   body:'Cuando alguien juega una carta, los demás <strong>votan</strong>. Si nadie veta antes de que se agote el tiempo, se aprueba automáticamente (el silencio es consentimiento).<br><br>Solo debes vetar cuando el uso de la carta te parezca <strong>ilegítimo o absurdo</strong> — por ejemplo, si dice «princesa» refiriéndose a un gato. El narrador sigue escribiendo durante la votación.'},
+  {id:'interrupt',title:'INTERRUPCIÓN',
+   body:'Si <strong>no eres narrador</strong>, puedes interrumpir: selecciona texto de la historia y una de tus cartas, o arrastra tu carta sobre una palabra. Si la votación aprueba tu interrupción, <strong>te conviertes en narrador</strong>.<br><br>⚠ Si la interrupción es rechazada, <strong>pierdes la carta</strong> y robas 1 del mazo.'},
+  {id:'golden',title:'COMODINES DE INTERRUPCIÓN ⚜',
+   body:'Las cartas con <strong>⚜ y el símbolo ↻</strong> son especiales. Tienen <strong>doble función</strong>:<br><br><strong>1)</strong> Puedes jugarla como carta normal (por ejemplo, «Caballo» como Personaje).<br><strong>2)</strong> Puedes usarla como <strong>comodín</strong>: si el narrador juega cualquier carta del mismo tipo (ej. cualquier 👤 Personaje), aparece una ventana ⚜ para robar el turno <strong>SIN votación</strong>.<br><br>Ejemplo: El narrador juega 👤 Princesa → si tienes ↻ Caballo (comodín de Personaje), puedes interrumpir instantáneamente porque ambos son del tipo Personaje.'},
+  {id:'pass',title:'PASAR TURNO',
+   body:'Si no puedes o no quieres seguir narrando, pulsa <strong>↻ PASAR</strong>. Descartas una carta narrativa y robas otra nueva del mazo. El turno pasa al siguiente jugador.'},
+  {id:'veto',title:'VETAR AL NARRADOR',
+   body:'Si no eres narrador, puedes <strong>vetar</strong> su turno indicando un motivo. Cuando la mitad de los jugadores <strong>vetan</strong>, el narrador pierde turno y roba 1 carta de penalización.<br><br>⚠ El veto solo debe usarse cuando alguien <strong>claramente está saboteando</strong> la partida: escribiendo texto sin sentido, troleando o ignorando la historia.'},
+  {id:'play-ending',title:'JUGAR EL FINAL',
+   body:'Cuando te hayas descartado de <strong>todas</strong> tus cartas narrativas y solo te quede tu carta de Final, esta se <strong>desbloquea ★</strong>. Escribe la historia para que desemboque naturalmente en tu final, selecciona el texto relevante y juégala.<br><br>Los demás votarán si tiene sentido. Si se aprueba, <strong>¡ganas!</strong>'},
+  {id:'victory',title:'¡VICTORIA!',
+   body:'Si tu final es aprobado, <strong>¡ganas la partida!</strong> Se muestra un ranking con los jugadores ordenados por cartas restantes — el que menos tiene, mejor posición.'},
+  {id:'done',title:'¡LISTO!',
+   body:'Ya conoces todas las mecánicas. ¡Crea una sala, invita a tus amigos y que empiece la historia!'},
 ];
+
+function TutArrow({dir,label}){
+  const cls=`tut-arrow tut-arrow-${dir||'down'}`;
+  return <div className={cls}><div className="tut-arrow-head">▼</div>{label&&<div className="tut-arrow-label">{label}</div>}</div>;
+}
 
 function Tutorial({onClose}){
   const[step,setStep]=useState(0);
@@ -121,71 +111,131 @@ function Tutorial({onClose}){
     {conceptName:'Bosque',conceptType:'place',isInterruption:false,fragment:'bosque encantado',start:40,end:56,playerId:'t1',playerName:'Elena'},
     {conceptName:'Corona',conceptType:'object',isInterruption:false,fragment:'corona brillante',start:79,end:95,playerId:'t2',playerName:'Marco'},
   ];
-  const handToShow=s.highlight==='ending'?[...TUTORIAL_HAND,TUTORIAL_ENDING]:TUTORIAL_HAND;
-  const conceptCards=TUTORIAL_HAND;
+  const conceptCards=TUTORIAL_HAND.filter(c=>!c.isInterruption);
+  const interruptCard=TUTORIAL_HAND.find(c=>c.isInterruption);
   const endingCard=TUTORIAL_ENDING;
-  const allDone=s.highlight==='ending'&&s.title==='JUGAR EL FINAL';
+  const showEnding=s.id==='ending'||s.id==='play-ending';
+  const endingUnlocked=s.id==='play-ending';
+  const showTimers=s.id==='timers';
+  const showInterruptCard=s.id==='golden'||s.id==='cards';
 
   return(<div className="tut-overlay">
     <div className="tut-scene">
       {/* Simulated topbar */}
-      <div className={`tut-topbar ${s.zone==='topbar'?'tut-hl':''}`}>
+      <div className={`tut-topbar ${s.id==='narrator'?'tut-hl':''}`}>
         <div className="tut-topbar-left">
           <span className="tlogo">📖</span><span className="ttl" style={{fontSize:14}}>ONCE UPON A TIME</span>
           <span className="rbdg">TUTORIAL</span>
         </div>
-        <div className={`tut-ranking ${s.highlight==='timers'?'tut-hl-el':''}`}>
+        <div className="tut-ranking">
           {TUTORIAL_PLAYERS.map((p,i)=><span key={p.id} className="tut-rank-chip"><span className="avsm" style={{background:pc(i).bg}}>{p.name[0]}</span><span style={{color:pc(i).l,fontSize:13}}>{p.name}</span></span>)}
         </div>
-        <div className={`tut-narr-chip ${s.highlight==='narrator'?'tut-hl-el':''}`}>
+        <div className={`tut-narr-chip ${s.id==='narrator'?'tut-hl-el':''}`} style={{position:'relative'}}>
           <span style={{color:'var(--dim)',fontSize:12}}>NARR:</span>
           <span className="avsm" style={{background:pc(0).bg}}>E</span>
           <span style={{color:pc(0).l}}>Elena ✍</span>
+          {s.id==='narrator'&&<TutArrow dir="up" label="Narrador actual"/>}
         </div>
       </div>
 
+      {/* Simulated timers */}
+      {showTimers&&<div className="tut-timers-sim">
+        <div className="tut-timer-row" style={{position:'relative'}}>
+          <div className="tut-timer-label">⏱ INACTIVIDAD</div>
+          <div className="tut-timer-num">22</div>
+          <div className="tut-timer-track"><div className="tut-timer-fill" style={{width:'73%',background:'#d4af37'}}/></div>
+          <TutArrow dir="left" label="Si llega a 0, pierdes turno"/>
+        </div>
+        <div className="tut-timer-row" style={{position:'relative'}}>
+          <div className="tut-timer-label">🟣 CARTA</div>
+          <div className="tut-timer-num" style={{color:'#7b1fa2'}}>1:38</div>
+          <div className="tut-timer-track"><div className="tut-timer-fill" style={{width:'82%',background:'#7b1fa2'}}/></div>
+          <TutArrow dir="left" label="Si no juegas carta, pierdes turno"/>
+        </div>
+      </div>}
+
       {/* Simulated game area */}
       <div className="tut-main">
-        <div className={`tut-story-area ${s.zone==='story'||s.highlight==='story'?'tut-hl':''}`}>
+        <div className={`tut-story-area ${s.id==='story'?'tut-hl':''}`} style={{position:'relative'}}>
           <div className="slbl">HISTORIA</div>
           <div className="tut-story-text">
             <StoryWords text={fakeStory} integrations={fakeIntegrations} sealedPos={95} pendingVote={null} players={TUTORIAL_PLAYERS}/>
             <span className="story-cursor"/>
           </div>
+          {s.id==='story'&&<div className="tut-sealed-note">
+            <TutArrow dir="up" label=""/>
+            <span>Las palabras de colores son texto <strong>sellado</strong> — no se puede borrar</span>
+          </div>}
+          {s.id==='play-card'&&<div className="tut-drag-anim">
+            <div className="tut-drag-card">👤 Princesa</div>
+            <div className="tut-drag-path"/>
+            <div className="tut-drag-target">«princesa»</div>
+          </div>}
+          {s.id==='interrupt'&&<div className="tut-interrupt-sim">
+            <div className="tut-int-typing">Marco escribe: «El camino era largo y...»</div>
+            <div className="tut-int-action">⚡ Tú arrastras tu carta sobre «camino» → ¡INTERRUPCIÓN!</div>
+          </div>}
         </div>
 
         <div className="tut-sidebar">
-          <div className={`tut-cards-area ${s.zone==='cards'?'tut-hl':''}`}>
-            <div className="slbl">CARTAS ({conceptCards.length}/6)</div>
+          <div className={`tut-cards-area ${s.id==='cards'||s.id==='play-card'||s.id==='interrupt'?'tut-hl':''}`} style={{position:'relative'}}>
+            <div className="slbl">CARTAS ({conceptCards.length+1}/6)</div>
             <div className="tut-hand">
               {conceptCards.map(c=>(
-                <div key={c.id} className={`gcard tut-gcard ${c.isInterruption?'gcard-interrupt':''} ${s.highlight==='interrupt-card'&&c.isInterruption?'tut-hl-el':''} ${s.highlight==='hand'&&!c.isInterruption?'tut-hl-el':''}`} style={{'--tc':c.isInterruption?'#d4af37':TC[c.type]}}>
-                  <div className="gc-face">{c.isInterruption&&<div className="gc-int-badge">⚜ INTERRUPCIÓN</div>}<CardImg img={c.img} size="lg"/><div className="gc-info"><div className="gc-name">{c.name}</div><div className="gc-type">{c.isInterruption?`↻ Comodín de ${TL[c.type]}`:TL[c.type]}</div></div><div className="gc-icon">{TI[c.type]}</div></div>
+                <div key={c.id} className={`gcard tut-gcard ${s.id==='cards'||s.id==='play-card'?'tut-hl-el':''}`} style={{'--tc':TC[c.type]}}>
+                  <div className="gc-face"><CardImg img={c.img} size="lg"/><div className="gc-info"><div className="gc-name">{c.name}</div><div className="gc-type">{TL[c.type]}</div></div><div className="gc-icon">{TI[c.type]}</div></div>
                 </div>))}
-              {(s.highlight==='ending'||s.zone==='cards')&&endingCard&&<div className={`gcard ending-card tut-gcard ${allDone?'':'locked'} ${s.highlight==='ending'?'tut-hl-el':''}`} style={{'--tc':'#d4af37'}}>
-                <div className="gc-face end-face"><div className="gc-icon end-icon">★</div><div className="gc-info end-info"><div className="gc-name ending-name">FINAL</div><div className="gc-end-full">«{endingCard.text}»</div></div>{!allDone&&<div className="gc-lock">🔒</div>}</div>
+              {showInterruptCard&&interruptCard&&<div className={`gcard tut-gcard gcard-interrupt ${s.id==='golden'?'tut-hl-el':''}`} style={{'--tc':'#d4af37',position:'relative'}}>
+                <div className="gc-face"><div className="gc-int-badge">⚜ INTERRUPCIÓN</div><CardImg img={interruptCard.img} size="lg"/><div className="gc-info"><div className="gc-name">{interruptCard.name}</div><div className="gc-type">↻ Comodín de {TL[interruptCard.type]}</div></div><div className="gc-icon">{TI[interruptCard.type]}</div></div>
+                {s.id==='golden'&&<TutArrow dir="up" label="Doble función"/>}
               </div>}
             </div>
+            {showEnding&&endingCard&&<div className={`tut-ending-full ${endingUnlocked?'tut-ending-unlocked':'tut-ending-locked'}`}>
+              <div className="tut-ending-star">{endingUnlocked?'★':'🔒'}</div>
+              <div className="tut-ending-label">FINAL</div>
+              <div className="tut-ending-text">«{endingCard.text}»</div>
+              {s.id==='ending'&&<TutArrow dir="left" label="Bloqueada hasta jugar todas"/>}
+              {s.id==='play-ending'&&<TutArrow dir="left" label="¡Desbloqueada!"/>}
+            </div>}
           </div>
-          <div className={`tut-actions ${s.zone==='actions'?'tut-hl':''}`}>
-            <div className={`tut-btn-fake ${s.highlight==='pass'?'tut-hl-el':''}`}>↻ PASAR</div>
-            <div className={`tut-btn-fake tut-btn-veto ${s.highlight==='veto'?'tut-hl-el':''}`}>✖ VETAR (0/1)</div>
+          <div className={`tut-actions ${s.id==='pass'||s.id==='veto'?'tut-hl':''}`}>
+            <div className={`tut-btn-fake ${s.id==='pass'?'tut-hl-el':''}`} style={{position:'relative'}}>↻ PASAR
+              {s.id==='pass'&&<TutArrow dir="up" label="Descarta 1, roba 1"/>}
+            </div>
+            <div className={`tut-btn-fake tut-btn-veto ${s.id==='veto'?'tut-hl-el':''}`} style={{position:'relative'}}>✖ VETAR (0/1)
+              {s.id==='veto'&&<TutArrow dir="up" label="Solo contra sabotaje"/>}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Simulated vote area */}
-      {s.highlight==='vote'&&<div className="tut-vote-sim">
+      {/* Simulated vote — in the story area, not overlapping dialog */}
+      {s.id==='vote'&&<div className="tut-vote-sim">
         <div className="tut-vote-head">⚖ VOTACIÓN — 15s</div>
         <div className="tut-vote-body">Marco juega <strong style={{color:TC.object}}>💎 Corona (Objeto)</strong></div>
         <div className="tut-vote-btns"><span className="tut-vb-yes">OK</span><span className="tut-vb-no">✗ VETAR</span></div>
+        <div className="tut-vote-note">Si nadie veta → se aprueba</div>
+      </div>}
+
+      {/* Golden interrupt window sim */}
+      {s.id==='golden'&&<div className="tut-golden-sim">
+        <div className="tut-golden-glow"/>
+        <div className="tut-golden-head">⚜ INTERRUPCIÓN DORADA — 8s</div>
+        <div className="tut-golden-body">El narrador jugó <strong style={{color:TC.character}}>👤 Princesa (Personaje)</strong></div>
+        <div className="tut-golden-sub">Tienes ↻ Caballo (Comodín de Personaje) — mismo tipo!</div>
+        <div className="tut-golden-btn">⚡ INTERRUMPIR SIN VOTO</div>
       </div>}
 
       {/* Victory sim */}
-      {s.title==='¡VICTORIA!'&&<div className="tut-victory-sim">
+      {s.id==='victory'&&<div className="tut-victory-sim">
         <div className="tut-vic-crown">♛</div>
         <div className="tut-vic-title">VICTORIA</div>
         <div className="tut-vic-name" style={{color:pc(0).l}}>Elena</div>
+        <div className="tut-vic-ranking">
+          <div className="tut-vic-row">🥇 Elena — <span style={{color:'var(--gold)'}}>★ GANADOR</span></div>
+          <div className="tut-vic-row">🥈 Marco — 2 cartas</div>
+          <div className="tut-vic-row">🥉 Lucía — 3 cartas</div>
+        </div>
       </div>}
     </div>
 
