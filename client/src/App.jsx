@@ -133,7 +133,8 @@ function VoteCorner({vote,players,myId,onVote,isSpec,config}){
     <div className="vc-desc">
       <span className="vc-player" style={{color:pC.l}}>{vote.initiatorName}</span>
       <span>{isInt?' interrumpe con ':vote.type==='ending'?' intenta el final':' juega '}</span>
-      {vote.concept&&<span style={{color:TC[vote.concept.type]}}><strong>{TI[vote.concept.type]} {vote.concept.name}</strong> <small>({vote.concept.isInterruption?`↻ ${TL[vote.concept.type]}`:TL[vote.concept.type]})</small></span>}
+      {vote.concept&&vote.type!=='ending'&&<span style={{color:TC[vote.concept.type]}}><strong>{TI[vote.concept.type]} {vote.concept.name}</strong> <small>({vote.concept.isInterruption?`↻ ${TL[vote.concept.type]}`:TL[vote.concept.type]})</small></span>}
+      {vote.concept&&vote.type==='ending'&&<span style={{color:'#d4af37'}}><strong>🏆 «{vote.concept.name.substring(0,60)}{vote.concept.name.length>60?'...':''}»</strong></span>}
     </div>
     {vote.fragment?.text&&<div className="vc-frag" style={{borderColor:pC.l}}>con «{vote.fragment.text.substring(0,80)}»</div>}
     {vote.justification&&<div className="vc-just"><strong>Justificación:</strong> «{vote.justification}»</div>}
@@ -220,6 +221,8 @@ function NarratorEditor({story,integrations,sealedPos,frozenPos,pendingVote,play
 
   // Auto-focus textarea when this component mounts (narrator gained control)
   useEffect(()=>{if(taRef.current&&!isDraggingCard)taRef.current.focus();},[isDraggingCard]);
+  // Auto-scroll textarea to bottom as text grows
+  useEffect(()=>{if(taRef.current)taRef.current.scrollTop=taRef.current.scrollHeight;},[localText]);
 
   function handleChange(e){
     const val=e.target.value;
@@ -357,7 +360,7 @@ export default function App(){
       // Consequence banners for the affected player
       const isMe=initiatorId===myId;
       if(isMe&&!approved){
-        if(type==='interrupt')showBanner('❌ Interrupción vetada — pierdes la carta y robas 2',4000);
+        if(type==='interrupt')showBanner('❌ Interrupción vetada — pierdes la carta y robas 1',4000);
         else if(type==='integrate')showBanner('❌ Carta vetada — no se integra',3000);
         else if(type==='ending')showBanner('❌ Final rechazado — nuevo final + 1 carta narrativa',3500);
       }else if(isMe&&approved){
@@ -552,7 +555,7 @@ export default function App(){
 
     {/* ═══ RULES MODAL ═══ */}
     {showRules&&<div className="modalbg" onClick={()=>setShowRules(false)}><div className="modalbox" onClick={e=>e.stopPropagation()}><div className="modhead"><h2 className="stitle">■ REGLAS ■</h2><button className="xb big" onClick={()=>setShowRules(false)}>×</button></div>
-      {[{t:'OBJETIVO',d:'Juega todas tus cartas mencionando sus conceptos en la historia y llévala a tu final secreto.'},{t:'JUGAR CARTA',d:'Selecciona texto + carta (o carta + texto). Ambos órdenes funcionan.'},{t:'SELLADO',d:'Cada vez que se juega una carta, todo el texto hasta ese punto se sella y no se puede borrar.'},{t:'INTERRUMPIR',d:'Si NO eres narrador: selecciona texto + carta. Si es rechazada, pierdes la carta y robas 2.'},{t:'VOTAR',d:'La votación aparece sin bloquear la partida. El narrador sigue escribiendo.'},{t:'FINAL',d:'Cuando hayas jugado todas tus cartas, se desbloquea tu FINAL. Solo el narrador.'},{t:'PASAR',d:'Descarta 1 carta → robas 1 nueva.'}].map((r,i)=><div key={i} className="rule"><div className="rule-t">► {r.t}</div><div className="rule-d">{r.d}</div></div>)}</div></div>}
+      {[{t:'OBJETIVO',d:'Juega todas tus cartas mencionando sus conceptos en la historia y llévala a tu final secreto.'},{t:'JUGAR CARTA',d:'Selecciona texto + carta (o carta + texto). Ambos órdenes funcionan.'},{t:'SELLADO',d:'Cada vez que se juega una carta, todo el texto hasta ese punto se sella y no se puede borrar.'},{t:'INTERRUMPIR',d:'Si NO eres narrador: selecciona texto + carta. Si es rechazada, pierdes la carta y robas 1.'},{t:'VOTAR',d:'La votación aparece sin bloquear la partida. El narrador sigue escribiendo.'},{t:'FINAL',d:'Cuando hayas jugado todas tus cartas, se desbloquea tu FINAL. Solo el narrador.'},{t:'PASAR',d:'Descarta 1 carta → robas 1 nueva.'}].map((r,i)=><div key={i} className="rule"><div className="rule-t">► {r.t}</div><div className="rule-d">{r.d}</div></div>)}</div></div>}
 
     {/* ═══ HOME ═══ */}
     {screen==='home'&&<div className="screen ctr"><div className="title-block"><PixelBook/><h1 className="main-title">ONCE UPON<br/>A TIME</h1><div className="sub-lbl">— ÉRASE UNA VEZ —</div></div>
@@ -597,6 +600,8 @@ export default function App(){
       const narrator=gs.players.find(p=>p.id===gs.narratorId);const nIdx=gs.players.findIndex(p=>p.id===gs.narratorId);
       const alreadyVetoed=gs.vetoVotes?.includes(gs.myId);
       const conceptCards=myPriv?.hand?.filter(c=>!c.isEnding)||[];
+      const storyRef=useRef(null);
+      useEffect(()=>{if(storyRef.current)storyRef.current.scrollTop=storyRef.current.scrollHeight;},[gs.story]);
       const endingCard=myPriv?.hand?.find(c=>c.isEnding);const allDone=conceptCards.length===0;
       const timeLeft=isNarr?Math.max(0,inact.limit-inact.s):0;const pct=isNarr?(inact.s/inact.limit)*100:0;
 
@@ -652,7 +657,7 @@ export default function App(){
           <div className="scol"><div className="slbl story-lbl">HISTORIA</div>
             {isNarr
               ?<NarratorEditor story={gs.story} integrations={gs.integrations} sealedPos={sealedPos} frozenPos={frozenPos} pendingVote={gs.currentVote} players={gs.players} activeCard={activeCard} pendingSel={pendingSel} isVoting={isVoting} isInterruptWindow={!!gs.interruptWindow} onUpdate={updateStory} onTextSelected={onTextSelected} isDraggingCard={isDraggingCard} onWordDrop={onCardDrop} dragOverWord={dragOverWord} setDragOverWord={setDragOverWord}/>
-              :(<div className={`sdisp ${activeCard||pendingSel?'card-mode':''} ${isDraggingCard?'drag-active':''}`} onMouseUp={handleReaderMouseUp}
+              :(<div ref={storyRef} className={`sdisp ${activeCard||pendingSel?'card-mode':''} ${isDraggingCard?'drag-active':''}`} onMouseUp={handleReaderMouseUp}
                 onDragOver={e=>{if(isDraggingCard){e.preventDefault();e.dataTransfer.dropEffect='move';}}}
                 onDrop={e=>{if(isDraggingCard){e.preventDefault();setDragOverWord(null);}}}>
                 <StoryWords text={gs.story} integrations={gs.integrations} sealedPos={sealedPos} pendingVote={gs.currentVote} players={gs.players} dropEnabled={isDraggingCard} onWordDrop={onCardDrop} dragOverWord={dragOverWord} setDragOverWord={setDragOverWord}/>
@@ -689,7 +694,7 @@ export default function App(){
               {myPriv.integrated.length>0&&<><div className="slbl">JUGADAS</div><div className="chips">{myPriv.integrated.map((c,i)=><span key={i} className={`chip ${c.isInterruption?'chip-int':''}`} style={{'--tc':c.isInterruption?'#d4af37':TC[c.type]}}>{TI[c.type]} {c.name} <small>({c.isInterruption?`↻ ${TL[c.type]}`:TL[c.type]})</small></span>)}</div></>}
               <div className="drow"><span className="dcount">MAZO {gs.deckSize}</span><span className="dcount">FINALES {gs.endingsDeckSize}</span></div>
               <div className="aarea">
-                {isNarr&&!showPass&&!popup&&<button className="btn-pass" onClick={()=>setShowPass(true)}>↻ PASAR</button>}
+                {isNarr&&!showPass&&!popup&&<button className="btn-pass" onClick={()=>{if(conceptCards.length===0){sfx('swap');showBanner('↻ Pasas turno — robas 1 carta',3000);socket.emit('pass-turn',{},r=>{if(r?.error)notify(r.error);});}else setShowPass(true);}}>↻ PASAR</button>}
                 {!isNarr&&!popup&&<>{!alreadyVetoed&&<button className="btn-veto" onClick={doVeto}>✖ VETAR ({gs.vetoVotes?.length||0}/{gs.vetoThreshold})</button>}{alreadyVetoed&&<div className="vdone">VETO OK</div>}</>}</div>
               {showPass&&<div className="pass-ov"><div className="pass-mod"><div className="pm-t">↻ DESCARTA UNA CARTA</div>
                 <div className="pm-cards">{conceptCards.map(c=>(<div key={c.id} className="gcard disc" style={{'--tc':TC[c.type]}} onClick={()=>doPass(c.id)}><div className="gc-face"><CardImg img={c.img} size="md"/><div className="gc-info"><div className="gc-name">{c.name}</div></div></div></div>))}</div>
@@ -717,8 +722,17 @@ export default function App(){
 
     {/* ═══ VICTORY ═══ */}
     {screen==='game'&&gs&&isFinished&&(()=>{const w=gs.players.find(p=>p.id===gs.winnerId);const wi=gs.players.findIndex(p=>p.id===gs.winnerId);const isHost=gs.players.find(p=>p.id===gs.myId)?.isHost||gs.isHost;
+      const ranked=[...gs.players].sort((a,b)=>{if(a.id===gs.winnerId)return-1;if(b.id===gs.winnerId)return 1;return(a.handCount-1)-(b.handCount-1);});
+      const medals=['🥇','🥈','🥉'];
       return(<div className="screen ctr"><div className="vcrown">♛</div><h1 className="vtit">VICTORIA</h1>
         <div className="avlg" style={{background:pc(wi).bg}}>{w?.name?.[0]}</div><div className="vname" style={{color:pc(wi).l}}>{w?.name}</div><div className="vsub">ha completado su historia</div>
+        <div className="v-ranking">{ranked.map((p,i)=>{const pi=gs.players.findIndex(x=>x.id===p.id);const cc=Math.max(0,p.handCount-1);const isW=p.id===gs.winnerId;return(
+          <div key={p.id} className={`v-rank-row ${isW?'v-rank-winner':''} ${p.id===gs.myId?'v-rank-me':''}`}>
+            <span className="v-rank-pos">{medals[i]||`${i+1}.`}</span>
+            <div className="avsm" style={{background:pc(pi).bg}}>{p.name[0]}</div>
+            <span className="v-rank-name" style={{color:isW?'var(--gold)':pc(pi).l}}>{p.name}</span>
+            <span className="v-rank-cards">{isW?'★ GANADOR':`${cc} carta${cc!==1?'s':''}`}</span>
+          </div>);})}</div>
         {gs.story&&<div className="srecap"><div className="rtxt">{gs.story}</div></div>}
         <div style={{display:'flex',gap:12,marginTop:20,flexWrap:'wrap',justifyContent:'center'}}>
           <button className="btn-gold" onClick={downloadStory}>▼ DESCARGAR</button>
