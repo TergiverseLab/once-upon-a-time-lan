@@ -302,7 +302,7 @@ export default function App(){
   const[showCfg,setShowCfg]=useState(false);
   const[popupTime,setPopupTime]=useState(0);const popupTimerRef=useRef(null);
   const[cardPreview,setCardPreview]=useState(null);
-  const[homeTab,setHomeTab]=useState('create');const[homeName,setHomeName]=useState('');const[homeCode,setHomeCode]=useState('');
+  const[homeTab,setHomeTab]=useState('create');const[homeName,setHomeName]=useState('');const[homeCode,setHomeCode]=useState('');const[hostOnly,setHostOnly]=useState(false);
   const[muted,setMuted]=useState(false);
   const[showSound,setShowSound]=useState(false);
   const[musicTrack,setMusicTrack]=useState('none');
@@ -312,6 +312,8 @@ export default function App(){
   const[rewindTarget,setRewindTarget]=useState(null);const rewindRef=useRef(null);
   const[screenShake,setScreenShake]=useState(false);
   const[confetti,setConfetti]=useState(false);
+  const[interruptAlert,setInterruptAlert]=useState(null);const interruptAlertT=useRef(null);
+  const[cardPlay,setCardPlay]=useState({s:0,limit:120});
   const vrT=useRef(null);const prevNarr=useRef(null);
 
   useEffect(()=>()=>{clearPopupTimer();clearTimeout(vrT.current);stopMusic();},[]);
@@ -385,7 +387,13 @@ export default function App(){
       }else{sfx('denied');setScreenShake(true);setTimeout(()=>setScreenShake(false),450);}
     });
     socket.on('story-rewind',({text})=>{setRewindTarget(text);});
-    return()=>{['connect','disconnect','lobby-update','game-state','story-updated','vote-tick','interrupt-window-tick','inactivity-tick','narrator-changed','vote-resolved','story-rewind'].forEach(e=>socket.off(e));};
+    socket.on('interrupt-alert',({playerName,conceptName,conceptType,isInterruption})=>{
+      clearTimeout(interruptAlertT.current);
+      setInterruptAlert({playerName,conceptName,conceptType,isInterruption});
+      interruptAlertT.current=setTimeout(()=>setInterruptAlert(null),5000);
+    });
+    socket.on('cardplay-tick',({seconds,limit})=>{setCardPlay({s:seconds,limit});});
+    return()=>{['connect','disconnect','lobby-update','game-state','story-updated','vote-tick','interrupt-window-tick','inactivity-tick','narrator-changed','vote-resolved','story-rewind','interrupt-alert','cardplay-tick'].forEach(e=>socket.off(e));};
   },[]);
 
   // ═══ EFFECTS — narrator change detection ═══
@@ -485,7 +493,7 @@ export default function App(){
   function handleCardDragEnd(){setIsDraggingCard(false);setDragOverWord(null);}
 
   // ═══ ACTIONS ═══
-  function doCreateRoom(name){if(!name)return notify('Escribe tu nombre');setMyName(name);socket.emit('create-room',{playerName:name},r=>{if(r.error)return notify(r.error);setMyId(r.playerId);setRoomCode(r.code);});}
+  function doCreateRoom(name){if(!name)return notify('Escribe tu nombre');setMyName(name);socket.emit('create-room',{playerName:name,hostOnly},r=>{if(r.error)return notify(r.error);setMyId(r.playerId);setRoomCode(r.code);if(r.isSpectator)setIsSpec(true);});}
   function joinRoom2(code,name){if(!name)return notify('Escribe tu nombre');if(!code)return notify('Escribe el código');setMyName(name);socket.emit('join-room',{roomCode:code,playerName:name},r=>{if(r.error)return notify(r.error);setMyId(r.playerId);setRoomCode(r.code);if(r.reconnected){notify('🔄 ¡Reconectado!',2000);setIsSpec(false);}else if(r.isSpectator)setIsSpec(true);});}
   function joinProj(code){socket.emit('join-projector',{roomCode:code},r=>{if(r.error)return notify(r.error);setRoomCode(r.code);setScreen('projector');});}
   function doStart(){socket.emit('start-game',null,r=>{if(r?.error)notify(r.error);});}
@@ -530,6 +538,14 @@ export default function App(){
         '--csw':(Math.random()*30+10)+'px',animationDelay:(Math.random()*1.5)+'s'
       }}/>;})}</div>}
     {cardPreview&&<div className="cprev-ov"><div className="cprev" style={{'--tc':TC[cardPreview.type]}}>{cardPreview.img&&<img src={`/cards/${cardPreview.img}`} className="cprev-img" alt=""/>}<div className="cprev-name">{cardPreview.name}</div><div className="cprev-type">{cardPreview.isInterruption?wcLabel(cardPreview):TL[cardPreview.type]}</div></div></div>}
+    {interruptAlert&&<div className="int-alert-ov" onClick={()=>setInterruptAlert(null)}><div className="int-alert">
+      <div className="int-alert-icon">⚡</div>
+      <div className="int-alert-title">INTERRUPCIÓN</div>
+      <div className="int-alert-body"><strong style={{color:TC[interruptAlert.conceptType]||'#d4af37'}}>{interruptAlert.playerName}</strong> ha interrumpido con {interruptAlert.isInterruption?'un comodín de interrupción':'una carta'}:</div>
+      <div className="int-alert-card" style={{borderColor:TC[interruptAlert.conceptType]||'#d4af37'}}>{TI[interruptAlert.conceptType]} {interruptAlert.conceptName} <small>({TL[interruptAlert.conceptType]})</small></div>
+      <div className="int-alert-explain">{interruptAlert.isInterruption?'Un comodín de interrupción permite robar el turno de narrador cuando la carta es del mismo tipo que la última jugada.':'Esta carta interrumpe la narración actual.'}</div>
+      <div className="int-alert-dismiss">toca para cerrar</div>
+    </div></div>}
 
     {/* ═══ RULES MODAL ═══ */}
     {showRules&&<div className="modalbg" onClick={()=>setShowRules(false)}><div className="modalbox" onClick={e=>e.stopPropagation()}><div className="modhead"><h2 className="stitle">■ REGLAS ■</h2><button className="xb big" onClick={()=>setShowRules(false)}>×</button></div>
@@ -540,15 +556,16 @@ export default function App(){
       <div className="card hcard"><div className="tbar"><button className={`tb ${homeTab==='create'?'on':''}`} onClick={()=>setHomeTab('create')}>CREAR</button><button className={`tb ${homeTab==='join'?'on':''}`} onClick={()=>setHomeTab('join')}>UNIRSE</button><button className={`tb ${homeTab==='projector'?'on':''}`} onClick={()=>setHomeTab('projector')}>TV</button></div>
         {homeTab!=='projector'&&<input className="inp" value={homeName} onChange={e=>setHomeName(e.target.value)} placeholder="► Tu nombre" maxLength={16} onKeyDown={e=>{if(e.key==='Enter'&&homeTab==='create')doCreateRoom(homeName.trim());}}/>}
         {(homeTab==='join'||homeTab==='projector')&&<input className="inp" value={homeCode} onChange={e=>setHomeCode(e.target.value.toUpperCase())} placeholder="► Código" maxLength={12}/>}
+        {homeTab==='create'&&<label className="host-only-lbl"><input type="checkbox" checked={hostOnly} onChange={e=>setHostOnly(e.target.checked)}/><span>Solo host (no jugar, solo observar)</span></label>}
         <button className="btn-pri" onClick={()=>{if(homeTab==='create')doCreateRoom(homeName.trim());else if(homeTab==='join')joinRoom2(homeCode.trim(),homeName.trim());else joinProj(homeCode.trim());}}>{homeTab==='create'?'★ CREAR':homeTab==='join'?'► ENTRAR':'◄► TV'}</button>
       </div><button className="btn-ghost" onClick={()=>setShowRules(true)}>? REGLAS</button></div>}
 
     {/* ═══ LOBBY ═══ */}
-    {screen==='lobby'&&(()=>{const{players,config}=lobbyData;const isHost=players.find(p=>p.id===myId)?.isHost;
+    {screen==='lobby'&&(()=>{const{players,config}=lobbyData;const isHost=players.find(p=>p.id===myId)?.isHost;const activePlayers=players.filter(p=>!p.isSpectatorHost);
       return(<div className="screen ctr"><h2 className="stitle">■ SALA ■</h2>
         <div className="code-box" onClick={()=>navigator.clipboard?.writeText(roomCode)}><span className="cl">CÓDIGO</span><span className="cv">{roomCode}</span><span className="ch">► copiar</span></div>
-        <div className="card" style={{maxWidth:500,width:'100%'}}><div className="slbl">PLAYERS ({players.length}/6)</div>
-          <div className="llist">{players.map((p,i)=>(<div key={p.id} className="lp"><div className="av" style={{background:pc(i).bg}}>{p.name[0]?.toUpperCase()}</div><span className="pn">{p.name}</span>{p.isHost&&<span className="bdg host">♛</span>}{p.id===myId&&<span className="bdg you">TÚ</span>}</div>))}</div>
+        <div className="card" style={{maxWidth:500,width:'100%'}}><div className="slbl">PLAYERS ({activePlayers.length}/6)</div>
+          <div className="llist">{players.map((p,i)=>(<div key={p.id} className="lp"><div className="av" style={{background:pc(i).bg}}>{p.name[0]?.toUpperCase()}</div><span className="pn">{p.name}</span>{p.isHost&&!p.isSpectatorHost&&<span className="bdg host">♛</span>}{p.isSpectatorHost&&<span className="bdg host">♛ HOST</span>}{p.id===myId&&<span className="bdg you">TÚ</span>}</div>))}</div>
           {isHost&&<>
             <button className="btn-ghost cfg-toggle" onClick={()=>setShowCfg(!showCfg)}>{showCfg?'▲ OCULTAR CONFIG':'▼ CONFIGURACIÓN'}</button>
             {showCfg&&<div className="cfg-panel">
@@ -561,8 +578,9 @@ export default function App(){
               <div className="cfg-row"><label>Tiempo de voto (s)</label><input type="number" min="10" max="60" value={config.voteTime||20} onChange={e=>updateConfig({voteTime:+e.target.value})}/></div>
               <div className="cfg-row"><label>Inactividad máx (s)</label><input type="number" min="15" max="120" value={config.inactLimit||30} onChange={e=>updateConfig({inactLimit:+e.target.value})}/></div>
               <div className="cfg-row"><label>Ventana interrupción (s)</label><input type="number" min="4" max="15" value={config.interruptWindowTime||8} onChange={e=>updateConfig({interruptWindowTime:+e.target.value})}/></div>
+              <div className="cfg-row"><label>Límite jugar carta (s)</label><input type="number" min="30" max="300" step="10" value={config.cardPlayLimit||120} onChange={e=>updateConfig({cardPlayLimit:+e.target.value})}/><span className="cfg-hint">{Math.floor((config.cardPlayLimit||120)/60)}m {(config.cardPlayLimit||120)%60}s</span></div>
             </div>}
-            <button className="btn-pri" onClick={doStart} disabled={players.length<2} style={{marginTop:12}}>► START</button>
+            <button className="btn-pri" onClick={doStart} disabled={activePlayers.length<2} style={{marginTop:12}}>► START</button>
           </>}
           {!isHost&&<div className="hint">Esperando al host...</div>}
         </div>
@@ -621,6 +639,11 @@ export default function App(){
           <div className={`cd-bar ${pct>85?'crit':pct>60?'warn':''}`}>
             <div className="cd-num" style={{color:pct>85?'#ff1744':pct>60?'#ff9100':'#d4af37'}}>{timeLeft}</div>
             <div className="cd-track"><div className="cd-fill" style={{width:(100-pct)+'%'}}/></div></div>)}
+        {isNarr&&gs.phase==='playing'&&!popup&&gs.config?.cardPlayLimit>0&&(()=>{const cpLeft=Math.max(0,cardPlay.limit-cardPlay.s);const cpPct=(cardPlay.s/cardPlay.limit)*100;return(
+          <div className={`cd-bar cd-bar-card ${cpPct>85?'crit':cpPct>60?'warn':''}`}>
+            <div className="cd-label">CARTA</div>
+            <div className="cd-num" style={{color:cpPct>85?'#ff1744':cpPct>60?'#ff9100':'#7b1fa2'}}>{Math.floor(cpLeft/60)}:{String(cpLeft%60).padStart(2,'0')}</div>
+            <div className="cd-track"><div className="cd-fill" style={{width:(100-cpPct)+'%',background:cpPct>85?'#ff1744':cpPct>60?'#ff9100':'#7b1fa2'}}/></div></div>);})()}
 
         <div className="gmain">
           <div className="scol"><div className="slbl story-lbl">HISTORIA</div>
@@ -690,7 +713,7 @@ export default function App(){
       </div>);})()}
 
     {/* ═══ VICTORY ═══ */}
-    {screen==='game'&&gs&&isFinished&&(()=>{const w=gs.players.find(p=>p.id===gs.winnerId);const wi=gs.players.findIndex(p=>p.id===gs.winnerId);const isHost=gs.players.find(p=>p.id===gs.myId)?.isHost;
+    {screen==='game'&&gs&&isFinished&&(()=>{const w=gs.players.find(p=>p.id===gs.winnerId);const wi=gs.players.findIndex(p=>p.id===gs.winnerId);const isHost=gs.players.find(p=>p.id===gs.myId)?.isHost||gs.isHost;
       return(<div className="screen ctr"><div className="vcrown">♛</div><h1 className="vtit">VICTORIA</h1>
         <div className="avlg" style={{background:pc(wi).bg}}>{w?.name?.[0]}</div><div className="vname" style={{color:pc(wi).l}}>{w?.name}</div><div className="vsub">ha completado su historia</div>
         {gs.story&&<div className="srecap"><div className="rtxt">{gs.story}</div></div>}
