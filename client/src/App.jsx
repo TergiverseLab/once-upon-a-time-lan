@@ -48,6 +48,162 @@ function stopMusic(){
 function setMusicVolume(v){if(_musicAudio)_musicAudio.volume=Math.max(0,Math.min(1,v));}
 function toggleMute(){_muted=!_muted;if(_muted)stopMusic();return _muted;}
 
+// ═══ TUTORIAL DATA ═══
+const TUTORIAL_PLAYERS=[
+  {id:'t1',name:'Elena',handCount:6,integratedCount:0,integrated:[],connected:true,isHost:true},
+  {id:'t2',name:'Marco',handCount:6,integratedCount:0,integrated:[],connected:true,isHost:false},
+  {id:'t3',name:'Lucía',handCount:6,integratedCount:0,integrated:[],connected:true,isHost:false},
+];
+const TUTORIAL_HAND=[
+  {id:'tc1',name:'Princesa',type:'character',isInterruption:false,isEnding:false,img:'carta_003.png'},
+  {id:'tc2',name:'Bosque',type:'place',isInterruption:false,isEnding:false,img:'carta_131.png'},
+  {id:'tc3',name:'Corona',type:'object',isInterruption:false,isEnding:false,img:'carta_015.png'},
+  {id:'tc4',name:'Perdido(a)',type:'aspect',isInterruption:false,isEnding:false,img:'carta_100.png'},
+  {id:'tc5',name:'Un viaje',type:'event',isInterruption:false,isEnding:false,img:'carta_096.png'},
+  {id:'tc6',name:'Caballo',type:'character',isInterruption:true,isEnding:false,img:'carta_091.png'},
+];
+const TUTORIAL_ENDING={id:'te1',name:'Y vivieron felices para siempre.',text:'Y vivieron felices para siempre.',type:'ending',isInterruption:false,isEnding:true};
+const TUTORIAL_STEPS=[
+  {title:'BIENVENIDO AL TUTORIAL',
+   body:'Esto es <strong>Once Upon a Time</strong>, un juego de cartas donde creas historias entre todos. Vamos a simular una partida para que aprendas las mecánicas.',
+   highlight:null,zone:null},
+  {title:'TUS CARTAS',
+   body:'Estas son tus cartas narrativas. Cada una tiene un <strong>tipo</strong>: 👤 Personaje, 🏰 Lugar, 💎 Objeto, ✨ Aspecto o ⚡ Acontecimiento. Tu objetivo es mencionarlas <strong>todas</strong> en la historia.',
+   highlight:'hand',zone:'cards'},
+  {title:'CARTA DE FINAL',
+   body:'Tu carta dorada es tu <strong>Final secreto</strong>. Solo podrás jugarla cuando hayas usado todas tus cartas narrativas. ¡La historia debe desembocar en tu final para ganar!',
+   highlight:'ending',zone:'cards'},
+  {title:'EL NARRADOR',
+   body:'El jugador con el icono ✍ es el <strong>narrador</strong>. Solo él puede escribir en la historia. Los demás observan y pueden interrumpir.',
+   highlight:'narrator',zone:'topbar'},
+  {title:'ESCRIBIR LA HISTORIA',
+   body:'Cuando eres narrador, escribes libremente en el área de texto. La historia crece con cada turno. El texto <strong>sellado</strong> (ya jugado) no se puede borrar.',
+   highlight:'story',zone:'story'},
+  {title:'JUGAR UNA CARTA',
+   body:'Para jugar una carta: <strong>1)</strong> Haz clic en la carta, <strong>2)</strong> selecciona las palabras en la historia que se relacionan. También puedes <strong>arrastrar</strong> la carta directamente sobre una palabra.',
+   highlight:'hand',zone:'cards'},
+  {title:'VOTACIÓN',
+   body:'Cuando alguien juega una carta, los demás <strong>votan</strong>. Si nadie veta antes del tiempo, se aprueba automáticamente. Se necesita mayoría para vetar. El narrador sigue escribiendo durante la votación.',
+   highlight:'vote',zone:'bottom'},
+  {title:'INTERRUPCIÓN',
+   body:'Si <strong>no eres narrador</strong>, puedes interrumpir seleccionando texto + tu carta. Si se aprueba, ¡te conviertes en narrador! Si se rechaza, pierdes la carta y robas 1.',
+   highlight:'hand',zone:'cards'},
+  {title:'INTERRUPCIÓN DORADA ⚜',
+   body:'Las cartas con el símbolo <strong>↻</strong> son <strong>comodines de interrupción</strong>. Cuando el narrador juega una carta del mismo tipo, aparece una ventana especial para interrumpir <strong>sin votación</strong>.',
+   highlight:'interrupt-card',zone:'cards'},
+  {title:'PASAR TURNO',
+   body:'Si no puedes o no quieres narrar, pulsa <strong>↻ PASAR</strong>. Descartas una carta y robas otra nueva. El turno pasa al siguiente jugador.',
+   highlight:'pass',zone:'actions'},
+  {title:'VETAR AL NARRADOR',
+   body:'Si no eres narrador, puedes <strong>vetar</strong> con un motivo. Cuando la mitad de los jugadores velan, el narrador pierde turno y roba 1 carta de penalización.',
+   highlight:'veto',zone:'actions'},
+  {title:'JUGAR EL FINAL',
+   body:'Cuando hayas jugado <strong>todas</strong> tus cartas narrativas, tu carta de Final se desbloquea. Escribe la historia para que lleve a tu final, selecciona texto y juégala. ¡Los demás votarán si tiene sentido!',
+   highlight:'ending',zone:'cards'},
+  {title:'¡VICTORIA!',
+   body:'Si tu final es aprobado, <strong>¡ganas!</strong> Se muestra un ranking con los jugadores ordenados por cartas restantes. El que menos cartas tiene, mejor posición.',
+   highlight:null,zone:null},
+  {title:'TEMPORIZADORES',
+   body:'Hay dos temporizadores para el narrador: uno de <strong>inactividad</strong> (si no escribes, pierdes turno) y otro de <strong>límite para jugar carta</strong> (barra morada). ¡No te duermas!',
+   highlight:'timers',zone:'topbar'},
+  {title:'¡LISTO!',
+   body:'Ya conoces todas las mecánicas. ¡Crea una sala, invita a tus amigos y que empiece la historia!',
+   highlight:null,zone:null},
+];
+
+function Tutorial({onClose}){
+  const[step,setStep]=useState(0);
+  const s=TUTORIAL_STEPS[step];
+  const total=TUTORIAL_STEPS.length;
+  const fakeStory='Érase una vez una princesa que vivía en un bosque encantado. Un día encontró una corona brillante entre los árboles.';
+  const fakeIntegrations=[
+    {conceptName:'Princesa',conceptType:'character',isInterruption:false,fragment:'princesa',start:16,end:24,playerId:'t1',playerName:'Elena'},
+    {conceptName:'Bosque',conceptType:'place',isInterruption:false,fragment:'bosque encantado',start:40,end:56,playerId:'t1',playerName:'Elena'},
+    {conceptName:'Corona',conceptType:'object',isInterruption:false,fragment:'corona brillante',start:79,end:95,playerId:'t2',playerName:'Marco'},
+  ];
+  const handToShow=s.highlight==='ending'?[...TUTORIAL_HAND,TUTORIAL_ENDING]:TUTORIAL_HAND;
+  const conceptCards=TUTORIAL_HAND;
+  const endingCard=TUTORIAL_ENDING;
+  const allDone=s.highlight==='ending'&&s.title==='JUGAR EL FINAL';
+
+  return(<div className="tut-overlay">
+    <div className="tut-scene">
+      {/* Simulated topbar */}
+      <div className={`tut-topbar ${s.zone==='topbar'?'tut-hl':''}`}>
+        <div className="tut-topbar-left">
+          <span className="tlogo">📖</span><span className="ttl" style={{fontSize:14}}>ONCE UPON A TIME</span>
+          <span className="rbdg">TUTORIAL</span>
+        </div>
+        <div className={`tut-ranking ${s.highlight==='timers'?'tut-hl-el':''}`}>
+          {TUTORIAL_PLAYERS.map((p,i)=><span key={p.id} className="tut-rank-chip"><span className="avsm" style={{background:pc(i).bg}}>{p.name[0]}</span><span style={{color:pc(i).l,fontSize:13}}>{p.name}</span></span>)}
+        </div>
+        <div className={`tut-narr-chip ${s.highlight==='narrator'?'tut-hl-el':''}`}>
+          <span style={{color:'var(--dim)',fontSize:12}}>NARR:</span>
+          <span className="avsm" style={{background:pc(0).bg}}>E</span>
+          <span style={{color:pc(0).l}}>Elena ✍</span>
+        </div>
+      </div>
+
+      {/* Simulated game area */}
+      <div className="tut-main">
+        <div className={`tut-story-area ${s.zone==='story'||s.highlight==='story'?'tut-hl':''}`}>
+          <div className="slbl">HISTORIA</div>
+          <div className="tut-story-text">
+            <StoryWords text={fakeStory} integrations={fakeIntegrations} sealedPos={95} pendingVote={null} players={TUTORIAL_PLAYERS}/>
+            <span className="story-cursor"/>
+          </div>
+        </div>
+
+        <div className="tut-sidebar">
+          <div className={`tut-cards-area ${s.zone==='cards'?'tut-hl':''}`}>
+            <div className="slbl">CARTAS ({conceptCards.length}/6)</div>
+            <div className="tut-hand">
+              {conceptCards.map(c=>(
+                <div key={c.id} className={`gcard tut-gcard ${c.isInterruption?'gcard-interrupt':''} ${s.highlight==='interrupt-card'&&c.isInterruption?'tut-hl-el':''} ${s.highlight==='hand'&&!c.isInterruption?'tut-hl-el':''}`} style={{'--tc':c.isInterruption?'#d4af37':TC[c.type]}}>
+                  <div className="gc-face">{c.isInterruption&&<div className="gc-int-badge">⚜ INTERRUPCIÓN</div>}<CardImg img={c.img} size="lg"/><div className="gc-info"><div className="gc-name">{c.name}</div><div className="gc-type">{c.isInterruption?`↻ Comodín de ${TL[c.type]}`:TL[c.type]}</div></div><div className="gc-icon">{TI[c.type]}</div></div>
+                </div>))}
+              {(s.highlight==='ending'||s.zone==='cards')&&endingCard&&<div className={`gcard ending-card tut-gcard ${allDone?'':'locked'} ${s.highlight==='ending'?'tut-hl-el':''}`} style={{'--tc':'#d4af37'}}>
+                <div className="gc-face end-face"><div className="gc-icon end-icon">★</div><div className="gc-info end-info"><div className="gc-name ending-name">FINAL</div><div className="gc-end-full">«{endingCard.text}»</div></div>{!allDone&&<div className="gc-lock">🔒</div>}</div>
+              </div>}
+            </div>
+          </div>
+          <div className={`tut-actions ${s.zone==='actions'?'tut-hl':''}`}>
+            <div className={`tut-btn-fake ${s.highlight==='pass'?'tut-hl-el':''}`}>↻ PASAR</div>
+            <div className={`tut-btn-fake tut-btn-veto ${s.highlight==='veto'?'tut-hl-el':''}`}>✖ VETAR (0/1)</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Simulated vote area */}
+      {s.highlight==='vote'&&<div className="tut-vote-sim">
+        <div className="tut-vote-head">⚖ VOTACIÓN — 15s</div>
+        <div className="tut-vote-body">Marco juega <strong style={{color:TC.object}}>💎 Corona (Objeto)</strong></div>
+        <div className="tut-vote-btns"><span className="tut-vb-yes">OK</span><span className="tut-vb-no">✗ VETAR</span></div>
+      </div>}
+
+      {/* Victory sim */}
+      {s.title==='¡VICTORIA!'&&<div className="tut-victory-sim">
+        <div className="tut-vic-crown">♛</div>
+        <div className="tut-vic-title">VICTORIA</div>
+        <div className="tut-vic-name" style={{color:pc(0).l}}>Elena</div>
+      </div>}
+    </div>
+
+    {/* Tutorial dialog */}
+    <div className="tut-dialog">
+      <div className="tut-step-bar"><span className="tut-step-num">PASO {step+1}/{total}</span><div className="tut-progress"><div className="tut-progress-fill" style={{width:((step+1)/total*100)+'%'}}/></div></div>
+      <div className="tut-title">{s.title}</div>
+      <div className="tut-body" dangerouslySetInnerHTML={{__html:s.body}}/>
+      <div className="tut-nav">
+        {step>0&&<button className="btn-sec" onClick={()=>setStep(step-1)}>◄ ANTERIOR</button>}
+        {step<total-1&&<button className="btn-gold" onClick={()=>setStep(step+1)}>SIGUIENTE ►</button>}
+        {step===total-1&&<button className="btn-gold" onClick={onClose}>★ EMPEZAR A JUGAR</button>}
+        <button className="btn-sec tut-skip" onClick={onClose}>SALIR</button>
+      </div>
+    </div>
+  </div>);
+}
+
 // ═══ WORD PARSER ═══
 function parseWords(text){if(!text)return[];const ws=[];let i=0;
   while(i<text.length){if(text[i]===' '||text[i]==='\n'){ws.push({t:text[i],s:i,e:i+1,sp:true});i++;}
@@ -305,7 +461,7 @@ export default function App(){
   const[showCfg,setShowCfg]=useState(false);
   const[popupTime,setPopupTime]=useState(0);const popupTimerRef=useRef(null);
   const[cardPreview,setCardPreview]=useState(null);
-  const[homeTab,setHomeTab]=useState('create');const[homeName,setHomeName]=useState('');const[homeCode,setHomeCode]=useState('');const[hostOnly,setHostOnly]=useState(false);
+  const[homeTab,setHomeTab]=useState('create');const[homeName,setHomeName]=useState('');const[homeCode,setHomeCode]=useState('');const[hostOnly,setHostOnly]=useState(false);const[showTutorial,setShowTutorial]=useState(false);
   const[muted,setMuted]=useState(false);
   const[showSound,setShowSound]=useState(false);
   const[musicTrack,setMusicTrack]=useState('none');
@@ -564,7 +720,9 @@ export default function App(){
         {(homeTab==='join'||homeTab==='projector')&&<input className="inp" value={homeCode} onChange={e=>setHomeCode(e.target.value.toUpperCase())} placeholder="► Código" maxLength={12}/>}
         {homeTab==='create'&&<label className="host-only-lbl"><input type="checkbox" checked={hostOnly} onChange={e=>setHostOnly(e.target.checked)}/><span>Solo host (no jugar, solo observar)</span></label>}
         <button className="btn-pri" onClick={()=>{if(homeTab==='create')doCreateRoom(homeName.trim());else if(homeTab==='join')joinRoom2(homeCode.trim(),homeName.trim());else joinProj(homeCode.trim());}}>{homeTab==='create'?'★ CREAR':homeTab==='join'?'► ENTRAR':'◄► TV'}</button>
-      </div><button className="btn-ghost" onClick={()=>setShowRules(true)}>? REGLAS</button></div>}
+      </div><div style={{display:'flex',gap:10}}><button className="btn-ghost" onClick={()=>setShowRules(true)}>? REGLAS</button><button className="btn-ghost" onClick={()=>setShowTutorial(true)}>📖 TUTORIAL</button></div></div>}
+
+    {showTutorial&&<Tutorial onClose={()=>setShowTutorial(false)}/>}
 
     {/* ═══ LOBBY ═══ */}
     {screen==='lobby'&&(()=>{const{players,config}=lobbyData;const isHost=players.find(p=>p.id===myId)?.isHost;const activePlayers=players.filter(p=>!p.isSpectatorHost);
