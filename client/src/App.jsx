@@ -491,7 +491,7 @@ export default function App(){
   useEffect(()=>{
     socket.on('connect',()=>{setConnected(true);
       // Auto-reconnect to room on socket reconnection (network drop)
-      const s=localStorage.getItem('ouat');if(s){try{const d=JSON.parse(s);socket.emit('reconnect-player',{roomCode:d.roomCode,playerId:d.myId},r=>{if(r?.success){setMyId(d.myId);setRoomCode(d.roomCode);}});}catch(e){}}
+      const s=localStorage.getItem('ouat');if(s){try{const d=JSON.parse(s);socket.emit('reconnect-player',{roomCode:d.roomCode,playerId:d.myId},r=>{if(r?.success){setMyId(d.myId);setRoomCode(d.roomCode);}else{localStorage.removeItem('ouat');}});}catch(e){localStorage.removeItem('ouat');}}
     });socket.on('disconnect',()=>setConnected(false));
     socket.on('lobby-update',d=>{setLobbyData({players:d.players,config:d.config||{}});setRoomCode(d.code);setScreen('lobby');});
     socket.on('game-state',state=>{
@@ -575,7 +575,7 @@ export default function App(){
   // ═══ VICTORY CONFETTI on game finish ═══
   const prevPhaseRef=useRef(null);
   useEffect(()=>{if(gs?.phase==='finished'&&prevPhaseRef.current==='playing'){setConfetti(true);setTimeout(()=>setConfetti(false),4000);sfx('approved');}prevPhaseRef.current=gs?.phase||null;},[gs?.phase]);
-  useEffect(()=>{const s=localStorage.getItem('ouat');if(s){try{const d=JSON.parse(s);socket.emit('reconnect-player',{roomCode:d.roomCode,playerId:d.myId},r=>{if(r?.success){setMyId(d.myId);setRoomCode(d.roomCode);}else localStorage.removeItem('ouat');});}catch(e){localStorage.removeItem('ouat');}};},[]);
+  // Removed duplicate reconnect — handled by socket.on('connect') above
 
   // Reset dismiss when new interrupt window appears
   const prevIwRef=useRef(null);
@@ -655,8 +655,8 @@ export default function App(){
   function handleCardDragEnd(){setIsDraggingCard(false);setDragOverWord(null);}
 
   // ═══ ACTIONS ═══
-  function doCreateRoom(name){if(!name)return notify('Escribe tu nombre');setMyName(name);socket.emit('create-room',{playerName:name,hostOnly},r=>{if(r.error)return notify(r.error);setMyId(r.playerId);setRoomCode(r.code);if(r.isSpectator)setIsSpec(true);});}
-  function joinRoom2(code,name){if(!name)return notify('Escribe tu nombre');if(!code)return notify('Escribe el código');setMyName(name);socket.emit('join-room',{roomCode:code,playerName:name},r=>{if(r.error)return notify(r.error);setMyId(r.playerId);setRoomCode(r.code);if(r.reconnected){notify('🔄 ¡Reconectado!',2000);setIsSpec(false);}else if(r.isSpectator)setIsSpec(true);});}
+  function doCreateRoom(name){if(!name)return notify('Escribe tu nombre');localStorage.removeItem('ouat');setMyName(name);socket.emit('create-room',{playerName:name,hostOnly},r=>{if(r.error)return notify(r.error);setMyId(r.playerId);setRoomCode(r.code);setScreen('lobby');if(r.isSpectator)setIsSpec(true);});}
+  function joinRoom2(code,name){if(!name)return notify('Escribe tu nombre');if(!code)return notify('Escribe el código');localStorage.removeItem('ouat');setMyName(name);socket.emit('join-room',{roomCode:code,playerName:name},r=>{if(r.error)return notify(r.error);setMyId(r.playerId);setRoomCode(r.code);setScreen('lobby');if(r.reconnected){notify('🔄 ¡Reconectado!',2000);setIsSpec(false);}else if(r.isSpectator)setIsSpec(true);});}
   function joinProj(code){socket.emit('join-projector',{roomCode:code},r=>{if(r.error)return notify(r.error);setRoomCode(r.code);setScreen('projector');});}
   function doStart(){socket.emit('start-game',null,r=>{if(r?.error)notify(r.error);});}
   function updateStory(text){socket.emit('story-update',{text});}
@@ -752,6 +752,9 @@ export default function App(){
           <button className="btn-ghost" onClick={()=>setShowRules(true)}>? REGLAS</button>
           <button className="btn-ghost" onClick={goHome}>◄ SALIR</button>
         </div></div>);})()}
+
+    {/* ═══ GAME — loading fallback ═══ */}
+    {screen==='game'&&!gs&&<div className="screen ctr"><div className="stitle">CARGANDO PARTIDA...</div><button className="btn-ghost" style={{marginTop:16}} onClick={goHome}>◄ VOLVER AL MENÚ</button></div>}
 
     {/* ═══ GAME ═══ */}
     {screen==='game'&&gs&&!isFinished&&(()=>{
