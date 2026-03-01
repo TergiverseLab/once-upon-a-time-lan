@@ -390,7 +390,7 @@ export default function App(){
     socket.on('interrupt-alert',({playerName,conceptName,conceptType,isInterruption})=>{
       clearTimeout(interruptAlertT.current);
       setInterruptAlert({playerName,conceptName,conceptType,isInterruption});
-      interruptAlertT.current=setTimeout(()=>setInterruptAlert(null),5000);
+      interruptAlertT.current=setTimeout(()=>setInterruptAlert(null),3000);
     });
     socket.on('cardplay-tick',({seconds,limit})=>{setCardPlay({s:seconds,limit});});
     return()=>{['connect','disconnect','lobby-update','game-state','story-updated','vote-tick','interrupt-window-tick','inactivity-tick','narrator-changed','vote-resolved','story-rewind','interrupt-alert','cardplay-tick'].forEach(e=>socket.off(e));};
@@ -402,7 +402,10 @@ export default function App(){
     const amNarr=gs.narratorId===myId;
     if(amNarr&&!wasNarr&&prevNarr.current!==null&&gs.phase==='playing'){
       console.log('[NARRATOR CHANGE] I am now narrator! frozenPos=',gs.frozenPos,'sealedPos=',gs.sealedPos);
-      showBanner('✍ TE TOCA ESCRIBIR');sfx('turn');
+      // Don't show generic banner if I just interrupted (vote-resolved will show a specific one)
+      const myInterrupt=gs.currentVote?.type==='interrupt'&&gs.currentVote?.initiatorId===myId;
+      if(!myInterrupt){showBanner('✍ TE TOCA ESCRIBIR');sfx('turn');}
+      else sfx('turn');
     }
     if(!amNarr&&wasNarr&&gs.phase==='playing'){
       console.log('[NARRATOR CHANGE] I lost narrator status');
