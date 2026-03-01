@@ -682,6 +682,10 @@ export default function App(){
 
   const isFinished=gs?.phase==='finished';
 
+  // ═══ Story auto-scroll (must be at component level, not inside IIFE) ═══
+  const storyRef=useRef(null);
+  useEffect(()=>{if(storyRef.current)storyRef.current.scrollTop=storyRef.current.scrollHeight;},[gs?.story]);
+
   // ═══ RENDER ═══
   return(<div className={`app ${screenShake?'shake':''}`}><div className="scanlines"/>
     {notif&&<div className="notif">{notif}</div>}
@@ -761,8 +765,6 @@ export default function App(){
       const narrator=gs.players.find(p=>p.id===gs.narratorId);const nIdx=gs.players.findIndex(p=>p.id===gs.narratorId);
       const alreadyVetoed=gs.vetoVotes?.includes(gs.myId);
       const conceptCards=myPriv?.hand?.filter(c=>!c.isEnding)||[];
-      const storyRef=useRef(null);
-      useEffect(()=>{if(storyRef.current)storyRef.current.scrollTop=storyRef.current.scrollHeight;},[gs.story]);
       const endingCard=myPriv?.hand?.find(c=>c.isEnding);const allDone=conceptCards.length===0;
       const timeLeft=isNarr?Math.max(0,inact.limit-inact.s):0;const pct=isNarr?(inact.s/inact.limit)*100:0;
 
@@ -908,5 +910,9 @@ export default function App(){
         {gs.currentVote&&<div className="pvote">⚖ VOTACIÓN — {gs.currentVote.timeLeft}s</div>}
         {gs.currentVote&&<FloatingCardOverlay vote={gs.currentVote} players={gs.players}/>}
         <ActionLog entries={gs.actionLog}/></div>);})()}
+
+    {/* ═══ FALLBACK — prevents black screen ═══ */}
+    {screen!=='home'&&screen!=='game'&&screen!=='projector'&&screen!=='lobby'&&<div className="screen ctr"><div className="stitle">ERROR</div><button className="btn-pri" style={{maxWidth:300,marginTop:16}} onClick={goHome}>◄ VOLVER AL MENÚ</button></div>}
+    {screen==='projector'&&!gs&&<div className="screen ctr"><div className="stitle">ESPERANDO DATOS...</div><button className="btn-ghost" style={{marginTop:16}} onClick={goHome}>◄ VOLVER</button></div>}
   </div>);
 }
