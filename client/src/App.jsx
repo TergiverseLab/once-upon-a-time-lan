@@ -542,7 +542,7 @@ export default function App(){
   useEffect(()=>{
     socket.on('connect',()=>{setConnected(true);
       // Auto-reconnect to room on socket reconnection (network drop)
-      const s=localStorage.getItem('ouat');if(s){try{const d=JSON.parse(s);socket.emit('reconnect-player',{roomCode:d.roomCode,playerId:d.myId},r=>{if(r?.success){setMyId(d.myId);setRoomCode(d.roomCode);}else{localStorage.removeItem('ouat');}});}catch(e){localStorage.removeItem('ouat');}}
+      const s=sessionStorage.getItem('ouat');if(s){try{const d=JSON.parse(s);socket.emit('reconnect-player',{roomCode:d.roomCode,playerId:d.myId},r=>{if(r?.success){setMyId(d.myId);setRoomCode(d.roomCode);}else{sessionStorage.removeItem('ouat');}});}catch(e){sessionStorage.removeItem('ouat');}}
     });socket.on('disconnect',()=>setConnected(false));
     socket.on('lobby-update',d=>{setLobbyData({players:d.players,config:d.config||{}});setRoomCode(d.code);setScreen('lobby');});
     socket.on('game-state',state=>{
@@ -622,7 +622,7 @@ export default function App(){
     }
     prevNarr.current=gs.narratorId;
   },[gs?.narratorId,myId,gs?.phase]);
-  useEffect(()=>{if(myId&&roomCode)localStorage.setItem('ouat',JSON.stringify({myId,roomCode}));},[myId,roomCode]);
+  useEffect(()=>{if(myId&&roomCode)sessionStorage.setItem('ouat',JSON.stringify({myId,roomCode}));},[myId,roomCode]);
   // ═══ VICTORY CONFETTI on game finish ═══
   const prevPhaseRef=useRef(null);
   useEffect(()=>{if(gs?.phase==='finished'&&prevPhaseRef.current==='playing'){setConfetti(true);setTimeout(()=>setConfetti(false),4000);sfx('approved');}prevPhaseRef.current=gs?.phase||null;},[gs?.phase]);
@@ -708,13 +708,13 @@ export default function App(){
   // ═══ ACTIONS ═══
   function fetchRooms(){setRoomsLoading(true);socket.emit('list-rooms',null,list=>{setActiveRooms(list||[]);setRoomsLoading(false);});}
   useEffect(()=>{if(homeTab==='rooms')fetchRooms();},[homeTab]);
-  function doCreateRoom(name){if(!name)return notify('Escribe tu nombre');localStorage.removeItem('ouat');setMyName(name);socket.emit('create-room',{playerName:name,hostOnly},r=>{if(r.error)return notify(r.error);setMyId(r.playerId);setRoomCode(r.code);setScreen('lobby');if(r.isSpectator)setIsSpec(true);});}
-  function joinRoom2(code,name){if(!name)return notify('Escribe tu nombre');if(!code)return notify('Escribe el código');localStorage.removeItem('ouat');setMyName(name);socket.emit('join-room',{roomCode:code,playerName:name},r=>{if(r.error)return notify(r.error);setMyId(r.playerId);setRoomCode(r.code);setScreen('lobby');if(r.reconnected){notify('🔄 ¡Reconectado!',2000);setIsSpec(false);}else if(r.isSpectator)setIsSpec(true);});}
+  function doCreateRoom(name){if(!name)return notify('Escribe tu nombre');sessionStorage.removeItem('ouat');setMyName(name);socket.emit('create-room',{playerName:name,hostOnly},r=>{if(r.error)return notify(r.error);setMyId(r.playerId);setRoomCode(r.code);setScreen('lobby');if(r.isSpectator)setIsSpec(true);});}
+  function joinRoom2(code,name){if(!name)return notify('Escribe tu nombre');if(!code)return notify('Escribe el código');sessionStorage.removeItem('ouat');setMyName(name);socket.emit('join-room',{roomCode:code,playerName:name},r=>{if(r.error)return notify(r.error);setMyId(r.playerId);setRoomCode(r.code);setScreen('lobby');if(r.reconnected){notify('🔄 ¡Reconectado!',2000);setIsSpec(false);}else if(r.isSpectator)setIsSpec(true);});}
   function joinProj(code){socket.emit('join-projector',{roomCode:code},r=>{if(r.error)return notify(r.error);setRoomCode(r.code);setScreen('projector');});}
   function doStart(){socket.emit('start-game',null,r=>{if(r?.error)notify(r.error);});}
   function updateStory(text){socket.emit('story-update',{text});}
   function updateConfig(cfg){socket.emit('update-config',{config:cfg},r=>{if(r?.error)notify(r.error);else notify('✅ CONFIG OK',1500);});}
-  function goHome(){stopMusic();socket.emit('leave-room');setScreen('home');setGs(null);setIsSpec(false);setShowSound(false);setShowCfg(false);localStorage.removeItem('ouat');}
+  function goHome(){stopMusic();socket.emit('leave-room');setScreen('home');setGs(null);setIsSpec(false);setShowSound(false);setShowCfg(false);sessionStorage.removeItem('ouat');}
   function doAction(){
     if(!popup)return;const data={conceptId:popup.card.id,fragment:popup.fragment,justification:just.trim()};
     console.log('[doAction]',popup.action,'card=',popup.card.name,'fragment=',popup.fragment);
