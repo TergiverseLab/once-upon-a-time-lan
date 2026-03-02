@@ -367,6 +367,33 @@ function VoteCorner({vote,players,myId,onVote,isSpec,config}){
   </div>);
 }
 
+// ═══ FLOATING VOTE — draggable vote panel ═══
+function FloatingVote({vote,players,myId,onVote,isSpec,config}){
+  const ref=useRef(null);const drag=useRef({active:false,ox:0,oy:0});
+  const[pos,setPos]=useState(null);
+  function onDown(e){
+    if(e.button&&e.button!==0)return;
+    const el=ref.current;if(!el)return;
+    const r=el.getBoundingClientRect();
+    const clientX=e.touches?e.touches[0].clientX:e.clientX;
+    const clientY=e.touches?e.touches[0].clientY:e.clientY;
+    drag.current={active:true,ox:clientX-r.left,oy:clientY-r.top};
+    function onMove(ev){
+      if(!drag.current.active)return;
+      const cx=ev.touches?ev.touches[0].clientX:ev.clientX;
+      const cy=ev.touches?ev.touches[0].clientY:ev.clientY;
+      setPos({x:Math.max(0,Math.min(window.innerWidth-100,cx-drag.current.ox)),y:Math.max(0,Math.min(window.innerHeight-50,cy-drag.current.oy))});
+    }
+    function onUp(){drag.current.active=false;document.removeEventListener('mousemove',onMove);document.removeEventListener('mouseup',onUp);document.removeEventListener('touchmove',onMove);document.removeEventListener('touchend',onUp);}
+    document.addEventListener('mousemove',onMove);document.addEventListener('mouseup',onUp);document.addEventListener('touchmove',onMove,{passive:false});document.addEventListener('touchend',onUp);
+  }
+  const style=pos?{left:pos.x,top:pos.y,bottom:'auto',right:'auto'}:{};
+  return(<div ref={ref} className="vote-float" style={style}>
+    <div className="vote-float-handle" onMouseDown={onDown} onTouchStart={onDown}><span>VOTACIÓN</span>⋮⋮</div>
+    <VoteCorner vote={vote} players={players} myId={myId} onVote={onVote} isSpec={isSpec} config={config}/>
+  </div>);
+}
+
 // ═══ INTERRUPT WINDOW — golden popup for eligible players ═══
 function InterruptWindow({iw,myHand,myId,narratorId,onUse,onDecline,config}){
   if(!iw||!myHand)return null;
@@ -495,8 +522,11 @@ function ActionLog({entries}){const ref=useRef(null);useEffect(()=>{ref.current&
 
 // ═══ RANKING ═══
 function RankingBar({players,myId,handSize}){const sorted=[...players].sort((a,b)=>(a.handCount-1)-(b.handCount-1));
+  const medals=['👑','🥈','🥉'];
   return(<div className="ranking"><div className="rank-title">RANKING</div><div className="rank-ladder">{sorted.map((p,i)=>{const pi=players.findIndex(x=>x.id===p.id);const me=p.id===myId;const cc=Math.max(0,p.handCount-1);const prog=handSize>0?((handSize-cc)/handSize)*100:0;
-    return(<div key={p.id} className={`rank-step ${i===0?'rank-first':''} ${me?'rank-me':''}`}><div className="rank-pos">{i+1}</div><div className="avsm" style={{background:pc(pi).bg}}>{p.name[0]}</div><div className="rank-info"><span className="rank-name">{p.name}{me?' ★':''}</span><div className="rank-bar-bg"><div className="rank-bar-fill" style={{width:Math.min(100,prog)+'%'}}/></div></div><span className="rank-count">{cc}/{handSize}</span></div>);})}</div></div>);}
+    return(<div key={p.id} className={`rank-step ${i===0?'rank-first':''} ${me?'rank-me':''}`}>
+      {i===0&&<span className="rank-crown">👑</span>}
+      <div className="rank-pos">{medals[i]||`${i+1}º`}</div><div className="avsm" style={{background:pc(pi).bg}}>{p.name[0]}</div><div className="rank-info"><span className="rank-name">{p.name}{me?' ★':''}</span><div className="rank-bar-bg"><div className="rank-bar-fill" style={{width:Math.min(100,prog)+'%',background:i===0?'var(--gold)':i===1?'#c0c0c0':i===2?'#cd7f32':'var(--dim)'}}/></div></div><span className="rank-count">{cc}/{handSize}</span></div>);})}</div></div>);}
 
 // ═══ MAIN APP ═══
 export default function App(){
@@ -594,25 +624,46 @@ export default function App(){
         else if(type==='ending')showBanner('🏆 ¡VICTORIA!',4000);
       }
       if(approved){sfx('approved');setSparkle(true);setTimeout(()=>setSparkle(false),1800);
-        if(type==='integrate'){
-          // Direct DOM — bypasses React render cycle entirely
+        if(type==='integrate'||type==='interrupt'){
+          // Spectacular card fly + impact — direct DOM for performance
           const color=TC[conceptType]||'#d4af37';
           const sx=window.innerWidth-180,sy=window.innerHeight-200;
-          const dx=Math.round(window.innerWidth*0.3)-sx,dy=120-sy;
+          const tx=Math.round(window.innerWidth*0.35),ty=130;
+          const dx=tx-sx,dy=ty-sy;
+          // Main flying card
           const el=document.createElement('div');el.className='card-fly';
-          el.style.cssText=`left:${sx}px;top:${sy}px;--fly-dx:${dx}px;--fly-dy:${dy}px;`;
+          el.style.cssText=`left:${sx}px;top:${sy}px;--fly-dx:${dx}px;--fly-dy:${dy}px;--fly-color:${color};`;
           if(conceptImg){const img=document.createElement('img');img.src='/cards/'+conceptImg;
-            img.style.cssText=`width:80px;height:110px;object-fit:cover;border-radius:3px;border:2px solid ${color};box-shadow:0 0 24px ${color};`;
+            img.style.cssText=`width:90px;height:125px;object-fit:cover;border-radius:4px;border:3px solid ${color};box-shadow:0 0 30px ${color},0 0 60px ${color}40;`;
             el.appendChild(img);
-          }else{const b=document.createElement('div');b.style.cssText=`width:80px;height:110px;background:${color};border-radius:3px;border:2px solid #fff;box-shadow:0 0 24px ${color};`;el.appendChild(b);}
+          }else{const b=document.createElement('div');b.style.cssText=`width:90px;height:125px;background:linear-gradient(135deg,${color},${color}80);border-radius:4px;border:3px solid #fff;box-shadow:0 0 30px ${color};`;el.appendChild(b);}
           document.body.appendChild(el);
+          // Trailing particles along flight path
+          for(let i=0;i<5;i++){
+            const tr=document.createElement('div');tr.className='card-fly-trail';
+            const progress=(i+1)*0.15;
+            tr.style.cssText=`left:${sx+dx*progress}px;top:${sy+dy*progress}px;width:${12-i*2}px;height:${12-i*2}px;background:${color};box-shadow:0 0 10px ${color};animation-delay:${i*0.08}s;`;
+            document.body.appendChild(tr);
+            setTimeout(()=>tr.remove(),800);
+          }
+          // Impact flash at destination
           const fl=document.createElement('div');fl.className='card-fly-flash';
-          fl.style.cssText=`left:${sx+dx+40}px;top:${sy+dy+55}px;width:20px;height:20px;background:${color};animation-delay:.5s;`;
+          fl.style.cssText=`left:${tx}px;top:${ty}px;width:30px;height:30px;background:${color};box-shadow:0 0 40px ${color};animation-delay:.6s;`;
           document.body.appendChild(fl);
-          setTimeout(()=>{el.remove();fl.remove();},1000);
+          // Impact ring
+          const ring=document.createElement('div');ring.className='card-impact-ring';
+          ring.style.cssText=`left:${tx}px;top:${ty}px;--fly-color:${color};animation-delay:.55s;`;
+          document.body.appendChild(ring);
+          // Screen-wide impact glow
+          const glow=document.createElement('div');glow.className='card-impact-ov';
+          glow.style.cssText=`--ix:${Math.round(tx/window.innerWidth*100)}%;--iy:${Math.round(ty/window.innerHeight*100)}%;--fly-color:${color}60;animation-delay:.5s;`;
+          document.body.appendChild(glow);
+          // Mini screen shake on impact
+          setTimeout(()=>{setScreenShake(true);setTimeout(()=>setScreenShake(false),300);},550);
+          setTimeout(()=>{el.remove();fl.remove();ring.remove();glow.remove();},1200);
         }
         if(type==='ending'){setConfetti(true);setTimeout(()=>setConfetti(false),4000);}
-      }else{sfx('denied');setScreenShake(true);setVetoFlash(true);setTimeout(()=>setScreenShake(false),500);setTimeout(()=>setVetoFlash(false),600);}
+      }else{sfx('denied');setScreenShake(true);setVetoFlash(true);setTimeout(()=>setScreenShake(false),600);setTimeout(()=>setVetoFlash(false),700);}
     });
     socket.on('story-rewind',({text})=>{setRewindTarget(text);});
     socket.on('interrupt-alert',({playerName,conceptName,conceptType,isInterruption})=>{
@@ -935,9 +986,15 @@ export default function App(){
               </div>}
             </div></div>
           <RankingBar players={gs.players} myId={gs.myId} handSize={handSize}/>
-          <div className="tbr"><span className="nl">NARR:</span><div className="nchip nchip-glow" style={{borderColor:pc(nIdx).bg,'--nc':pc(nIdx).bg}}><div className="avsm" style={{background:pc(nIdx).bg}}>{narrator?.name?.[0]}</div><span style={{color:pc(nIdx).l}}>{narrator?.name}</span></div>
+          <div className="tbr"><span className="nl">NARR:</span><div className="nchip nchip-glow" style={{borderColor:pc(nIdx).bg,'--nc':pc(nIdx).bg}}><div className="avsm" style={{background:pc(nIdx).bg}}>{narrator?.name?.[0]}</div><span style={{color:pc(nIdx).l}}>{narrator?.name}</span><span className="nchip-quill">✍</span></div>
             <button className="btn-exit" onClick={()=>{if(confirm('¿Salir al menú principal?'))goHome();}}>◄ SALIR</button></div></div>
 
+        {!isNarr&&gs.phase==='playing'&&narrator&&<div className="writing-banner">
+          <span className="writing-banner-icon">✍</span>
+          <span className="writing-banner-text">ESCRIBIENDO</span>
+          <span className="writing-banner-name" style={{color:pc(nIdx).l}}>{narrator.name}</span>
+          <span className="writing-banner-dots"><span/><span/><span/></span>
+        </div>}
         {isDraggingCard&&!popup&&<div className="active-card-bar drag-hint" style={{borderColor:'#d4af37',background:'rgba(212,175,55,.1)'}}>
           <span>🎯 <strong style={{color:'#d4af37'}}>ARRASTRA SOBRE UNA PALABRA</strong> de la historia para jugar la carta</span></div>}
         {(activeCard||pendingSel)&&!popup&&<div className="active-card-bar" style={{borderColor:activeCard?TC[activeCard.type]:pendingSel?'#fff':'var(--faint)'}}>
@@ -977,10 +1034,6 @@ export default function App(){
                   {popup.action==='interrupt'&&<button className="btn-irpt" onClick={doAction}>⚡ INTERRUMPIR</button>}</div></div></div>)}
             <div className="bottom-split">
               <div className="bottom-log"><ActionLog entries={gs.actionLog}/></div>
-              <div className="bottom-play">
-                {isVoting&&gs.currentVote?<VoteCorner vote={gs.currentVote} players={gs.players} myId={gs.myId} onVote={doVote} isSpec={isSpec} config={gs.config}/>
-                :<div className="bp-idle">—</div>}
-              </div>
             </div></div>
 
           <div className={`span${isSpec?' span-spec':''}`}>
@@ -1024,6 +1077,8 @@ export default function App(){
 
         {/* ═══ GOLDEN INTERRUPT WINDOW ═══ */}
         {gs.interruptWindow&&!isSpec&&!iwDismissed&&<InterruptWindow iw={gs.interruptWindow} myHand={myPriv?.hand} myId={gs.myId} narratorId={gs.narratorId} onUse={useGoldenInterrupt} onDecline={declineInterrupt} config={gs.config}/>}
+        {/* ═══ FLOATING VOTE PANEL ═══ */}
+        {isVoting&&gs.currentVote&&<FloatingVote vote={gs.currentVote} players={gs.players} myId={gs.myId} onVote={doVote} isSpec={isSpec} config={gs.config}/>}
       </div>);})()}
 
     {/* ═══ VICTORY ═══ */}
