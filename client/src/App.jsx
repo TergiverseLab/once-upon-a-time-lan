@@ -731,7 +731,7 @@ export default function App(){
   function joinProj(code){socket.emit('join-projector',{roomCode:code},r=>{if(r.error)return notify(r.error);setRoomCode(r.code);setScreen('projector');});}
   function doStart(){socket.emit('start-game',null,r=>{if(r?.error)notify(r.error);});}
   const storyThrottleRef=useRef(null);const pendingStoryRef=useRef(null);
-  function updateStory(text){pendingStoryRef.current=text;if(!storyThrottleRef.current){socket.emit('story-update',{text});storyThrottleRef.current=setTimeout(()=>{storyThrottleRef.current=null;if(pendingStoryRef.current!==text)socket.emit('story-update',{text:pendingStoryRef.current});},150);}}
+  function updateStory(text){setGs(p=>p?{...p,story:text}:p);pendingStoryRef.current=text;if(!storyThrottleRef.current){socket.emit('story-update',{text});storyThrottleRef.current=setTimeout(()=>{storyThrottleRef.current=null;if(pendingStoryRef.current!==text)socket.emit('story-update',{text:pendingStoryRef.current});},150);}}
   function updateConfig(patch){const next={...lobbyData.config,...patch};setLobbyData(p=>({...p,config:next}));clearTimeout(cfgTimer.current);cfgTimer.current=setTimeout(()=>socket.emit('update-config',{config:next},r=>{if(r?.error)notify(r.error);}),300);}
   function goHome(){stopMusic();socket.emit('leave-room');setScreen('home');setGs(null);setIsSpec(false);setShowSound(false);setShowCfg(false);sessionStorage.removeItem('ouat');}
   function doAction(){
