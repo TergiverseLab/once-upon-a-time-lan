@@ -512,6 +512,7 @@ export default function App(){
   const[popupTime,setPopupTime]=useState(0);const popupTimerRef=useRef(null);
   const[cardPreview,setCardPreview]=useState(null);
   const[homeTab,setHomeTab]=useState('create');const[homeName,setHomeName]=useState('');const[homeCode,setHomeCode]=useState('');const[hostOnly,setHostOnly]=useState(false);const[showTutorial,setShowTutorial]=useState(false);
+  const[activeRooms,setActiveRooms]=useState([]);const[roomsLoading,setRoomsLoading]=useState(false);
   const[muted,setMuted]=useState(false);
   const[showSound,setShowSound]=useState(false);
   const[musicTrack,setMusicTrack]=useState('none');
@@ -705,6 +706,8 @@ export default function App(){
   function handleCardDragEnd(){setIsDraggingCard(false);setDragOverWord(null);}
 
   // ═══ ACTIONS ═══
+  function fetchRooms(){setRoomsLoading(true);socket.emit('list-rooms',null,list=>{setActiveRooms(list||[]);setRoomsLoading(false);});}
+  useEffect(()=>{if(homeTab==='rooms')fetchRooms();},[homeTab]);
   function doCreateRoom(name){if(!name)return notify('Escribe tu nombre');localStorage.removeItem('ouat');setMyName(name);socket.emit('create-room',{playerName:name,hostOnly},r=>{if(r.error)return notify(r.error);setMyId(r.playerId);setRoomCode(r.code);setScreen('lobby');if(r.isSpectator)setIsSpec(true);});}
   function joinRoom2(code,name){if(!name)return notify('Escribe tu nombre');if(!code)return notify('Escribe el código');localStorage.removeItem('ouat');setMyName(name);socket.emit('join-room',{roomCode:code,playerName:name},r=>{if(r.error)return notify(r.error);setMyId(r.playerId);setRoomCode(r.code);setScreen('lobby');if(r.reconnected){notify('🔄 ¡Reconectado!',2000);setIsSpec(false);}else if(r.isSpectator)setIsSpec(true);});}
   function joinProj(code){socket.emit('join-projector',{roomCode:code},r=>{if(r.error)return notify(r.error);setRoomCode(r.code);setScreen('projector');});}
@@ -769,11 +772,35 @@ export default function App(){
 
     {/* ═══ HOME ═══ */}
     {screen==='home'&&<div className="screen ctr"><div className="title-block"><PixelBook/><h1 className="main-title">ONCE UPON<br/>A TIME</h1><div className="sub-lbl">— ÉRASE UNA VEZ —</div></div>
-      <div className="card hcard"><div className="tbar"><button className={`tb ${homeTab==='create'?'on':''}`} onClick={()=>setHomeTab('create')}>CREAR</button><button className={`tb ${homeTab==='join'?'on':''}`} onClick={()=>setHomeTab('join')}>UNIRSE</button><button className={`tb ${homeTab==='projector'?'on':''}`} onClick={()=>setHomeTab('projector')}>TV</button></div>
-        {homeTab!=='projector'&&<input className="inp" value={homeName} onChange={e=>setHomeName(e.target.value)} placeholder="► Tu nombre" maxLength={16} onKeyDown={e=>{if(e.key==='Enter'&&homeTab==='create')doCreateRoom(homeName.trim());}}/>}
+      <div className="card hcard"><div className="tbar"><button className={`tb ${homeTab==='create'?'on':''}`} onClick={()=>setHomeTab('create')}>CREAR</button><button className={`tb ${homeTab==='join'?'on':''}`} onClick={()=>setHomeTab('join')}>UNIRSE</button><button className={`tb ${homeTab==='rooms'?'on':''}`} onClick={()=>setHomeTab('rooms')}>SALAS</button><button className={`tb ${homeTab==='projector'?'on':''}`} onClick={()=>setHomeTab('projector')}>TV</button></div>
+        {homeTab!=='projector'&&homeTab!=='rooms'&&<input className="inp" value={homeName} onChange={e=>setHomeName(e.target.value)} placeholder="► Tu nombre" maxLength={16} onKeyDown={e=>{if(e.key==='Enter'&&homeTab==='create')doCreateRoom(homeName.trim());}}/>}
         {(homeTab==='join'||homeTab==='projector')&&<input className="inp" value={homeCode} onChange={e=>setHomeCode(e.target.value.toUpperCase())} placeholder="► Código" maxLength={12}/>}
         {homeTab==='create'&&<label className="host-only-lbl"><input type="checkbox" checked={hostOnly} onChange={e=>setHostOnly(e.target.checked)}/><span>Solo host (no jugar, solo observar)</span></label>}
-        <button className="btn-pri" onClick={()=>{if(homeTab==='create')doCreateRoom(homeName.trim());else if(homeTab==='join')joinRoom2(homeCode.trim(),homeName.trim());else joinProj(homeCode.trim());}}>{homeTab==='create'?'★ CREAR':homeTab==='join'?'► ENTRAR':'◄► TV'}</button>
+        {homeTab!=='rooms'&&<button className="btn-pri" onClick={()=>{if(homeTab==='create')doCreateRoom(homeName.trim());else if(homeTab==='join')joinRoom2(homeCode.trim(),homeName.trim());else joinProj(homeCode.trim());}}>{homeTab==='create'?'★ CREAR':homeTab==='join'?'► ENTRAR':'◄► TV'}</button>}
+        {homeTab==='rooms'&&<div className="rooms-browser">
+          <div className="rooms-header"><span className="slbl">SALAS ACTIVAS ({activeRooms.length})</span><button className="btn-sec rooms-refresh" onClick={fetchRooms} disabled={roomsLoading}>{roomsLoading?'...':'↻ REFRESCAR'}</button></div>
+          {activeRooms.length===0&&<div className="rooms-empty">{roomsLoading?'Buscando salas...':'No hay salas activas'}</div>}
+          <div className="rooms-list">{activeRooms.map(r=>{
+            const phaseLabel=r.phase==='lobby'?'EN LOBBY':r.phase==='playing'?'JUGANDO':r.phase==='finished'?'TERMINADA':'?';
+            const phaseClass=r.phase==='lobby'?'rp-lobby':r.phase==='playing'?'rp-playing':'rp-finished';
+            return(<div key={r.code} className="room-item">
+              <div className="ri-top">
+                <span className="ri-code">{r.code}</span>
+                <span className={`ri-phase ${phaseClass}`}>{phaseLabel}</span>
+              </div>
+              <div className="ri-info">
+                <span className="ri-host">♛ {r.hostName}</span>
+                <span className="ri-counts">👤 {r.playerCount}/6{r.spectatorCount>0&&` · 👁 ${r.spectatorCount}`}</span>
+              </div>
+              {r.playerNames.length>0&&<div className="ri-players">{r.playerNames.join(', ')}</div>}
+              <div className="ri-actions">
+                {r.phase==='lobby'&&<button className="btn-sec ri-btn" onClick={()=>{if(!homeName.trim()){notify('Escribe tu nombre primero');setHomeTab('join');return;}joinRoom2(r.code,homeName.trim());}}>► UNIRSE</button>}
+                {r.phase!=='lobby'&&<button className="btn-sec ri-btn" onClick={()=>{if(!homeName.trim()){notify('Escribe tu nombre primero');setHomeTab('join');return;}joinRoom2(r.code,homeName.trim());}}>👁 ESPECTADOR</button>}
+                {r.phase!=='lobby'&&<button className="btn-sec ri-btn" onClick={()=>{if(!homeName.trim()){notify('Escribe tu nombre primero');setHomeTab('join');return;}joinRoom2(r.code,homeName.trim());}}>🔄 RECONECTAR</button>}
+              </div>
+            </div>);})}</div>
+          {homeTab==='rooms'&&<input className="inp" value={homeName} onChange={e=>setHomeName(e.target.value)} placeholder="► Tu nombre (para unirte)" maxLength={16} style={{marginTop:8}}/>}
+        </div>}
       </div><div style={{display:'flex',gap:10}}><button className="btn-ghost" onClick={()=>setShowRules(true)}>? REGLAS</button><button className="btn-ghost" onClick={()=>setShowTutorial(true)}>📖 TUTORIAL</button></div></div>}
 
     {showTutorial&&<Tutorial onClose={()=>setShowTutorial(false)}/>}

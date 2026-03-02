@@ -553,6 +553,27 @@ body{font-family:var(--vt);background:var(--bg);color:var(--txt);-webkit-font-sm
 @keyframes popIn{0%{transform:scale(0.5);opacity:0;}100%{transform:scale(1);opacity:1;}}
 @keyframes fadeIn{0%{opacity:0;}100%{opacity:1;}}
 
+/* ═══ ROOM BROWSER ═══ */
+.rooms-browser{display:flex;flex-direction:column;gap:8px;}
+.rooms-header{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.rooms-refresh{padding:4px 10px!important;font-size:7px!important;}
+.rooms-empty{text-align:center;padding:20px;color:var(--dim);font-family:var(--px);font-size:8px;letter-spacing:2px;border:2px dashed var(--faint);background:rgba(0,0,0,.3);}
+.rooms-list{display:flex;flex-direction:column;gap:6px;max-height:300px;overflow-y:auto;}
+.room-item{padding:10px 12px;background:rgba(0,0,0,.5);border:2px solid var(--faint);transition:border-color .2s,box-shadow .2s;}
+.room-item:hover{border-color:var(--bdrl);box-shadow:0 0 12px rgba(212,175,55,.08);}
+.ri-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;}
+.ri-code{font-family:var(--px);font-size:11px;color:var(--gold);letter-spacing:3px;}
+.ri-phase{font-family:var(--px);font-size:7px;letter-spacing:1px;padding:2px 8px;border:1px solid;}
+.rp-lobby{color:#81c784;border-color:#4caf50;background:rgba(76,175,80,.08);}
+.rp-playing{color:#90caf9;border-color:#42a5f5;background:rgba(66,165,245,.08);}
+.rp-finished{color:var(--dim);border-color:var(--faint);background:rgba(0,0,0,.3);}
+.ri-info{display:flex;align-items:center;gap:12px;margin-bottom:4px;}
+.ri-host{font-family:var(--vt);font-size:16px;color:var(--gold);}
+.ri-counts{font-family:var(--vt);font-size:15px;color:var(--dim);}
+.ri-players{font-family:var(--vt);font-size:14px;color:var(--faint);margin-bottom:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ri-actions{display:flex;gap:6px;}
+.ri-btn{padding:5px 12px!important;font-size:7px!important;}
+
 /* ═══ TUTORIAL ═══ */
 .tut-overlay{position:fixed;inset:0;z-index:5000;background:rgba(0,0,0,.92);display:flex;flex-direction:column;overflow:hidden;animation:fadeIn .3s ease;}
 .tut-scene{flex:1;display:flex;flex-direction:column;overflow:hidden;padding:8px 12px;min-height:0;position:relative;}

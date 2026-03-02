@@ -21,7 +21,7 @@ const rooms=new Map();
 function computeSealedPos(r){let pos=0;for(const ig of r.integrations)pos=Math.max(pos,ig.end);return pos;}
 function effectiveFrozen(r){let pos=computeSealedPos(r);if(r.currentVote?.fragment?.end)pos=Math.max(pos,r.currentVote.fragment.end);return pos;}
 
-function createRoom(sid,name,hostOnly){let code;do{code=genCode();}while(rooms.has(code));const pid=uuid();const room={code,phase:'lobby',players:new Map(),spectators:new Map(),turnOrder:[],narratorIndex:0,story:'',deck:[],endingsDeck:[],discardPile:[],currentVote:null,interruptWindow:null,inactTimer:null,inactSec:0,actionLog:[],projectors:new Set(),integrations:[],vetoVotes:new Map(),winnerId:null,cardPlaySec:0,cardPlayTimer:null,config:{handSize:'auto',voteTime:20,tiebreakTime:8,inactLimit:30,integrateLimit:30,interruptWindowTime:8,cardPlayLimit:120,customCards:null,customEndings:null}};if(hostOnly){room.spectators.set(pid,{id:pid,name,socketId:sid,connected:true,isHost:true});} else {room.players.set(pid,{id:pid,name,socketId:sid,hand:[],integrated:[],connected:true,isHost:true});}rooms.set(code,room);return{code,playerId:pid,isSpectator:!!hostOnly};}
+function createRoom(sid,name,hostOnly){let code;do{code=genCode();}while(rooms.has(code));const pid=uuid();const room={code,phase:'lobby',_createdAt:Date.now(),players:new Map(),spectators:new Map(),turnOrder:[],narratorIndex:0,story:'',deck:[],endingsDeck:[],discardPile:[],currentVote:null,interruptWindow:null,inactTimer:null,inactSec:0,actionLog:[],projectors:new Set(),integrations:[],vetoVotes:new Map(),winnerId:null,cardPlaySec:0,cardPlayTimer:null,config:{handSize:'auto',voteTime:20,tiebreakTime:8,inactLimit:30,integrateLimit:30,interruptWindowTime:8,cardPlayLimit:120,customCards:null,customEndings:null}};if(hostOnly){room.spectators.set(pid,{id:pid,name,socketId:sid,connected:true,isHost:true});} else {room.players.set(pid,{id:pid,name,socketId:sid,hand:[],integrated:[],connected:true,isHost:true});}rooms.set(code,room);return{code,playerId:pid,isSpectator:!!hostOnly};}
 function joinRoom(code,sid,name){const room=rooms.get(code);if(!room)return{error:'Sala no encontrada'};
   // Reconnect by name if disconnected player exists (any phase)
   for(const[pid,p]of room.players){if(p.name.toLowerCase()===name.toLowerCase()&&!p.connected){p.socketId=sid;p.connected=true;return{playerId:pid,reconnected:true};}}
@@ -121,6 +121,16 @@ app.use(express.static(path.join(__dirname,'../client/dist')));app.get('*',(req,
 const stp=new Map();
 
 io.on('connection',(socket)=>{
+  socket.on('list-rooms',(_,cb)=>{
+    const list=[];
+    for(const[code,r]of rooms){
+      const connPlayers=[...r.players.values()].filter(p=>p.connected);
+      const connSpecs=[...r.spectators.values()].filter(s=>s.connected);
+      const host=[...r.players.values()].find(p=>p.isHost)||[...r.spectators.values()].find(s=>s.isHost);
+      list.push({code,phase:r.phase,playerCount:connPlayers.length,spectatorCount:connSpecs.filter(s=>!s.isHost).length,hostName:host?.name||'?',playerNames:connPlayers.map(p=>p.name),createdAt:r._createdAt||Date.now()});
+    }
+    cb(list);
+  });
   socket.on('create-room',({playerName,hostOnly},cb)=>{if(!playerName?.trim())return cb({error:'Nombre requerido'});const{code,playerId,isSpectator}=createRoom(socket.id,playerName.trim(),hostOnly);socket.join(code);stp.set(socket.id,{roomCode:code,playerId,isSpectator:!!isSpectator});cb({code,playerId,isSpectator:!!isSpectator});broadcastLobby(io,code);});
   socket.on('join-room',({roomCode,playerName},cb)=>{if(!playerName?.trim())return cb({error:'Nombre requerido'});const code=(roomCode||'').trim().toUpperCase();const r2=joinRoom(code,socket.id,playerName.trim());if(r2.error)return cb({error:r2.error});const rm=rooms.get(code);if(rm?._destroyTimer){clearTimeout(rm._destroyTimer);rm._destroyTimer=null;}socket.join(code);stp.set(socket.id,{roomCode:code,playerId:r2.playerId,isSpectator:r2.isSpectator});cb({code,playerId:r2.playerId,isSpectator:r2.isSpectator,reconnected:r2.reconnected});if(r2.reconnected){addLog(rm,'system',r2.playerId,`🔄 ${playerName.trim()} se ha reconectado`);broadcastGS(io,code);}else if(r2.isSpectator)broadcastGS(io,code);else broadcastLobby(io,code);});
   socket.on('join-projector',({roomCode},cb)=>{const code=(roomCode||'').trim().toUpperCase();const r=rooms.get(code);if(!r)return cb({error:'No encontrada'});socket.join(code);r.projectors.add(socket.id);stp.set(socket.id,{roomCode:code,playerId:null,isProjector:true});cb({code});if(r.phase!=='lobby')broadcastGS(io,code);else broadcastLobby(io,code);});
