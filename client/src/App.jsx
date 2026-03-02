@@ -6,8 +6,14 @@ import'./App.css';
 const TL={character:'Personaje',place:'Lugar',object:'Objeto',aspect:'Aspecto',event:'Acontecimiento',ending:'Final'};
 const TI={character:'👤',place:'🏰',object:'💎',aspect:'✨',event:'⚡',ending:'🏆'};
 const TC={character:'#c2185b',place:'#2e7d32',object:'#e65100',aspect:'#7b1fa2',event:'#1565c0',ending:'#d4af37'};
-const PC=[{bg:'#7b1fa2',l:'#ce93d8'},{bg:'#c62828',l:'#ef9a9a'},{bg:'#00695c',l:'#80cbc4'},{bg:'#e65100',l:'#ffcc80'},{bg:'#283593',l:'#9fa8da'},{bg:'#4e342e',l:'#bcaaa4'}];
+const PC=[{bg:'#7b1fa2',l:'#ce93d8'},{bg:'#c62828',l:'#ef9a9a'},{bg:'#00695c',l:'#80cbc4'},{bg:'#e65100',l:'#ffcc80'},{bg:'#283593',l:'#9fa8da'},{bg:'#4e342e',l:'#bcaaa4'},{bg:'#0277bd',l:'#81d4fa'},{bg:'#558b2f',l:'#aed581'},{bg:'#6a1b9a',l:'#ea80fc'},{bg:'#bf360c',l:'#ff8a65'},{bg:'#00838f',l:'#80deea'},{bg:'#4a148c',l:'#b388ff'}];
+const AVATARS=[
+  {emoji:'🐺',name:'Lobo Feroz'},{emoji:'🦊',name:'Zorro Astuto'},{emoji:'🐸',name:'Sapo Sabio'},
+  {emoji:'🦉',name:'Búho Viejo'},{emoji:'🧙',name:'Mago Errante'},{emoji:'🐉',name:'Dragón Bebé'},
+  {emoji:'🦄',name:'Unicornio'},{emoji:'🧚',name:'Hada Traviesa'},{emoji:'👹',name:'Troll Gruñón'},
+  {emoji:'🐻',name:'Oso Dormilón'},{emoji:'🦅',name:'Grifo Real'},{emoji:'🍄',name:'Duende Loco'}];
 function pc(i){return PC[Math.max(0,i)%PC.length];}
+function avatar(i){return AVATARS[Math.max(0,i)%AVATARS.length];}
 function wcLabel(c){return c?.isInterruption?`Comodín de ${TL[c.type]}`:TL[c.type]||'';}
 function cardLabel(c){if(!c)return'?';return`${TI[c.type]||''} ${c.name} (${TL[c.type]||c.type})${c.isInterruption?' ↻':''}`;}
 function cardLabelShort(c){return c?`${TI[c.type]} ${c.name}`:'';}
@@ -526,10 +532,10 @@ function ActionLog({entries}){const ref=useRef(null);useEffect(()=>{ref.current&
 // ═══ RANKING ═══
 function RankingBar({players,myId,handSize}){const sorted=[...players].sort((a,b)=>(a.handCount-1)-(b.handCount-1));
   const medals=['👑','🥈','🥉'];
-  return(<div className="ranking"><div className="rank-title">RANKING</div><div className="rank-ladder">{sorted.map((p,i)=>{const pi=players.findIndex(x=>x.id===p.id);const me=p.id===myId;const cc=Math.max(0,p.handCount-1);const prog=handSize>0?((handSize-cc)/handSize)*100:0;
+  return(<div className="ranking"><div className="rank-title">RANKING</div><div className="rank-ladder">{sorted.map((p,i)=>{const pi=players.findIndex(x=>x.id===p.id);const me=p.id===myId;const cc=Math.max(0,p.handCount-1);const prog=handSize>0?((handSize-cc)/handSize)*100:0;const av=avatar(pi);
     return(<div key={p.id} className={`rank-step ${i===0?'rank-first':''} ${me?'rank-me':''}`}>
       {i===0&&<span className="rank-crown">👑</span>}
-      <div className="rank-pos">{medals[i]||`${i+1}º`}</div><div className="avsm" style={{background:pc(pi).bg}}>{p.name[0]}</div><div className="rank-info"><span className="rank-name">{p.name}{me?' ★':''}</span><div className="rank-bar-bg"><div className="rank-bar-fill" style={{width:Math.min(100,prog)+'%',background:i===0?'var(--gold)':i===1?'#c0c0c0':i===2?'#cd7f32':'var(--dim)'}}/></div></div><span className="rank-count">{cc}/{handSize}</span></div>);})}</div></div>);}
+      <div className="rank-pos">{medals[i]||`${i+1}º`}</div><div className="avatar-emoji av-rank" style={{background:pc(pi).bg,borderColor:pc(pi).l}}>{av.emoji}</div><div className="rank-info"><span className="rank-name">{p.name}{me?' ★':''}</span><div className="rank-bar-bg"><div className="rank-bar-fill" style={{width:Math.min(100,prog)+'%',background:i===0?'var(--gold)':i===1?'#c0c0c0':i===2?'#cd7f32':'var(--dim)'}}/></div></div><span className="rank-count">{cc}/{handSize}</span></div>);})}</div></div>);}
 
 // ═══ MAIN APP ═══
 export default function App(){
@@ -552,7 +558,7 @@ export default function App(){
   const[sparkle,setSparkle]=useState(false);
   const[swappedId,setSwappedId]=useState(null);
   const[isDraggingCard,setIsDraggingCard]=useState(false);
-  const[dragOverWord,setDragOverWord]=useState(null);
+  const[dragOverWord,setDragOverWord]=useState(null);const dragOverWordRef=useRef(null);const draggingCardRef=useRef(null);
   const[showCfg,setShowCfg]=useState(false);
   const[popupTime,setPopupTime]=useState(0);const popupTimerRef=useRef(null);
   const[cardPreview,setCardPreview]=useState(null);
@@ -574,6 +580,7 @@ export default function App(){
   const[storyUnread,setStoryUnread]=useState(false);
 
   useEffect(()=>{myIdRef.current=myId;},[myId]);
+  useEffect(()=>{dragOverWordRef.current=dragOverWord;},[dragOverWord]);
   useEffect(()=>()=>{clearPopupTimer();clearTimeout(vrT.current);clearTimeout(cfgTimer.current);clearTimeout(storyThrottleRef.current);stopMusic();},[]);
   const notify=useCallback((msg,dur=3000)=>{setNotif(msg);setTimeout(()=>setNotif(null),dur);},[]);
   function doToggleMute(){const m=toggleMute();setMuted(m);if(!m&&screen==='game')startMusic(musicTrack);}
@@ -611,6 +618,8 @@ export default function App(){
     socket.on('vote-resolved',({type,approved,initiatorId,initiatorName,conceptName,conceptType,conceptImg,voters})=>{
       const icon=conceptType?TI[conceptType]:'';const typeName=conceptType?TL[conceptType]:'';
       const cardStr=conceptName?` — ${icon} ${conceptName} (${typeName})`:'';
+      // Auto-dismiss interrupt alert when vote resolves
+      setInterruptAlert(null);clearTimeout(interruptAlertT.current);
       // Vote result flash with voter breakdown
       let voterStr='';if(voters?.length){voterStr=voters.map(v=>`${v.approved?'✓':'✗'} ${v.name}${v.reason?' «'+v.reason+'»':''}`).join('  ·  ');}
       setVr({msg:`${approved?'✅':'❌'} ${approved?'APROBADA':'VETADA'}${cardStr}`,sub:voterStr,approved});
@@ -778,13 +787,21 @@ export default function App(){
   function handleCardDragStart(e,card){
     e.dataTransfer.setData('cardId',card.id);
     e.dataTransfer.effectAllowed='move';
+    draggingCardRef.current=card.id;
     const el=e.target.cloneNode(true);el.style.cssText='width:80px;height:auto;opacity:0.8;position:absolute;top:-1000px;';
     document.body.appendChild(el);e.dataTransfer.setDragImage(el,40,40);
     setTimeout(()=>document.body.removeChild(el),0);
     e.target.classList.add('dragging');
     setIsDraggingCard(true);
   }
-  function handleCardDragEnd(e){e.target.classList.remove('dragging');setIsDraggingCard(false);setDragOverWord(null);}
+  function handleCardDragEnd(e){
+    e.target.classList.remove('dragging');
+    // If a word was highlighted during drag, trigger the drop on it
+    const w=dragOverWordRef.current;const cid=draggingCardRef.current;
+    if(w&&cid){onCardDrop(cid,{text:w.t,start:w.s,end:w.e});}
+    else{setIsDraggingCard(false);setDragOverWord(null);}
+    draggingCardRef.current=null;
+  }
 
   // ═══ ACTIONS ═══
   function fetchRooms(){setRoomsLoading(true);socket.emit('list-rooms',null,list=>{setActiveRooms(list||[]);setRoomsLoading(false);});}
@@ -927,7 +944,7 @@ export default function App(){
       return(<div key="lobby" className="screen ctr screen-enter"><h2 className="stitle">■ SALA ■</h2>
         <div className="code-box" onClick={()=>navigator.clipboard?.writeText(roomCode)}><span className="cl">CÓDIGO</span><span className="cv">{roomCode}</span><span className="ch">► copiar</span></div>
         <div className="card" style={{maxWidth:500,width:'100%'}}><div className="slbl">PLAYERS ({activePlayers.length}/6)</div>
-          <div className="llist">{players.map((p,i)=>(<div key={p.id} className="lp"><div className="av" style={{background:pc(i).bg}}>{p.name[0]?.toUpperCase()}</div><span className="pn">{p.name}</span>{p.isHost&&!p.isSpectatorHost&&<span className="bdg host">♛</span>}{p.isSpectatorHost&&<span className="bdg host">♛ HOST</span>}{p.id===myId&&<span className="bdg you">TÚ</span>}</div>))}</div>
+          <div className="llist">{players.map((p,i)=>(<div key={p.id} className="lp"><div className="avatar-emoji av-md" style={{background:pc(i).bg,borderColor:pc(i).l}}>{avatar(i).emoji}</div><span className="pn">{p.name}</span>{p.isHost&&!p.isSpectatorHost&&<span className="bdg host">♛</span>}{p.isSpectatorHost&&<span className="bdg host">♛ HOST</span>}{p.id===myId&&<span className="bdg you">TÚ</span>}</div>))}</div>
           {isHost&&<>
             <button className="btn-ghost cfg-toggle" onClick={()=>setShowCfg(!showCfg)}>{showCfg?'▲ OCULTAR CONFIG':'▼ CONFIGURACIÓN'}</button>
             {showCfg&&<div className="cfg-panel">
@@ -997,7 +1014,7 @@ export default function App(){
               </div>}
             </div></div>
           <RankingBar players={gs.players} myId={gs.myId} handSize={handSize}/>
-          <div className="tbr"><span className="nl">NARR:</span><div className="nchip nchip-glow" style={{borderColor:pc(nIdx).bg,'--nc':pc(nIdx).bg}}><div className="avsm" style={{background:pc(nIdx).bg}}>{narrator?.name?.[0]}</div><span style={{color:pc(nIdx).l}}>{narrator?.name}</span><span className="nchip-quill">✍</span></div>
+          <div className="tbr"><span className="nl">NARR:</span><div className="nchip nchip-glow" style={{borderColor:pc(nIdx).bg,'--nc':pc(nIdx).bg}}><div className="avatar-emoji av-sm" style={{background:pc(nIdx).bg,borderColor:pc(nIdx).l}}>{avatar(nIdx).emoji}</div><span style={{color:pc(nIdx).l}}>{narrator?.name}</span><span className="nchip-quill">✍</span></div>
             <button className="btn-exit" onClick={()=>{if(confirm('¿Salir al menú principal?'))goHome();}}>◄ SALIR</button></div></div>
 
         {!isNarr&&gs.phase==='playing'&&narrator&&<div className="writing-banner">
@@ -1047,7 +1064,8 @@ export default function App(){
               <div className="bottom-log"><ActionLog entries={gs.actionLog}/></div>
             </div></div>
 
-          <div className={`span${isSpec?' span-spec':''}`}>
+          {showPass&&<div className="disc-dim"/>}
+          <div className={`span${isSpec?' span-spec':''}${showPass?' disc-active':''}`}>
             {myPriv&&!isSpec&&<>
               <div className="slbl">{showPass?'↻ ELIGE CARTA A DESCARTAR':'CARTAS'} ({conceptCards.length}/{handSize})</div>
               <div className="hand">{conceptCards.map(c=>(
@@ -1080,7 +1098,7 @@ export default function App(){
                 <button key={p.id} className="btn-reclaim" onClick={()=>doReclaim(p.id)}>🔄 RECLAMAR PUESTO DE {p.name}</button>))}
             </div>}
             <div className="slbl" style={{marginTop:8}}>PLAYERS</div>
-            <div className="plist">{gs.players.map((p,i)=>(<div key={p.id} className={`pli ${p.id===gs.narratorId?'pnarr':''} ${!p.connected?'pdc':''}`}><div className="avsm" style={{background:pc(i).bg}}>{p.name[0]}</div><div className="plinfo"><span className="pln">{p.name}{p.id===gs.myId?' (tú)':''}</span><span className="plst">{Math.max(0,p.handCount-1)}/{handSize} ✅{p.integratedCount}</span></div>{p.id===gs.narratorId&&<span>✍</span>}</div>))}</div>
+            <div className="plist">{gs.players.map((p,i)=>(<div key={p.id} className={`pli ${p.id===gs.narratorId?'pnarr':''} ${!p.connected?'pdc':''}`}><div className="avatar-emoji av-sm" style={{background:pc(i).bg,borderColor:pc(i).l}}>{avatar(i).emoji}</div><div className="plinfo"><span className="pln">{p.name}{p.id===gs.myId?' (tú)':''}</span><span className="plst">{Math.max(0,p.handCount-1)}/{handSize} ✅{p.integratedCount}</span></div>{p.id===gs.narratorId&&<span>✍</span>}</div>))}</div>
           </div>
         </div>
 
@@ -1095,11 +1113,11 @@ export default function App(){
       const ranked=[...gs.players].sort((a,b)=>{if(a.id===gs.winnerId)return-1;if(b.id===gs.winnerId)return 1;return(a.handCount-1)-(b.handCount-1);});
       const medals=['🥇','🥈','🥉'];
       return(<div key="victory" className="screen ctr screen-enter"><div className="vcrown">♛</div><h1 className="vtit">VICTORIA</h1>
-        <div className="avlg" style={{background:pc(wi).bg}}>{w?.name?.[0]}</div><div className="vname" style={{color:pc(wi).l}}>{w?.name}</div><div className="vsub">ha completado su historia</div>
+        <div className="avatar-emoji av-lg" style={{background:pc(wi).bg,borderColor:pc(wi).l}}>{avatar(wi).emoji}</div><div className="vname" style={{color:pc(wi).l}}>{w?.name}</div><div className="vsub">ha completado su historia</div>
         <div className="v-ranking">{ranked.map((p,i)=>{const pi=gs.players.findIndex(x=>x.id===p.id);const cc=Math.max(0,p.handCount-1);const isW=p.id===gs.winnerId;return(
           <div key={p.id} className={`v-rank-row ${isW?'v-rank-winner':''} ${p.id===gs.myId?'v-rank-me':''}`}>
             <span className="v-rank-pos">{medals[i]||`${i+1}.`}</span>
-            <div className="avsm" style={{background:pc(pi).bg}}>{p.name[0]}</div>
+            <div className="avatar-emoji av-sm" style={{background:pc(pi).bg,borderColor:pc(pi).l}}>{avatar(pi).emoji}</div>
             <span className="v-rank-name" style={{color:isW?'var(--gold)':pc(pi).l}}>{p.name}</span>
             <span className="v-rank-cards">{isW?'★ GANADOR':`${cc} carta${cc!==1?'s':''}`}</span>
           </div>);})}</div>
@@ -1112,7 +1130,7 @@ export default function App(){
     {/* ═══ PROJECTOR ═══ */}
     {screen==='projector'&&gs&&(()=>{const n=gs.players?.find(p=>p.id===gs.narratorId);const sp=gs.sealedPos||0;
       return(<div className="proj"><div className="ptop"><h1 className="pttl">ONCE UPON A TIME</h1><span className="rbdg">{gs.code}</span><div className="ppnarr">✍ {n?.name}</div></div>
-        <div className="pplayers">{gs.players?.map((p,i)=>(<div key={p.id} className={`pp ${p.id===gs.narratorId?'ppact':''}`}><div className="av" style={{background:pc(i).bg}}>{p.name[0]}</div><span>{p.name}</span><span className="ppst">{p.handCount}■</span></div>))}</div>
+        <div className="pplayers">{gs.players?.map((p,i)=>(<div key={p.id} className={`pp ${p.id===gs.narratorId?'ppact':''}`}><div className="avatar-emoji av-md" style={{background:pc(i).bg,borderColor:pc(i).l}}>{avatar(i).emoji}</div><span>{p.name}</span><span className="ppst">{p.handCount}■</span></div>))}</div>
         <div className="pstory"><StoryWords text={gs.story} integrations={gs.integrations} sealedPos={sp} pendingVote={gs.currentVote} players={gs.players}/>{gs.story&&gs.phase==='playing'&&<span className="story-cursor"/>}{!gs.story&&<span className="ph">...</span>}</div>
         {gs.currentVote&&<div className="pvote">⚖ VOTACIÓN — {gs.currentVote.timeLeft}s</div>}
         {gs.currentVote&&<FloatingCardOverlay vote={gs.currentVote} players={gs.players}/>}
