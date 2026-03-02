@@ -500,7 +500,7 @@ function RankingBar({players,myId,handSize}){const sorted=[...players].sort((a,b
 
 // ═══ MAIN APP ═══
 export default function App(){
-  const[connected,setConnected]=useState(socket.connected);
+  const[connected,setConnected]=useState(true);
   const[screen,setScreen]=useState('home');
   const[myId,setMyId]=useState(null);const[myName,setMyName]=useState('');
   const[roomCode,setRoomCode]=useState('');
@@ -533,6 +533,7 @@ export default function App(){
   const[showVetoModal,setShowVetoModal]=useState(false);const[vetoReason,setVetoReason]=useState('');
   const[rewindTarget,setRewindTarget]=useState(null);const rewindRef=useRef(null);
   const[screenShake,setScreenShake]=useState(false);
+  const[vetoFlash,setVetoFlash]=useState(false);
   const[confetti,setConfetti]=useState(false);
   const[interruptAlert,setInterruptAlert]=useState(null);const interruptAlertT=useRef(null);
   const[cardPlay,setCardPlay]=useState({s:0,limit:120});
@@ -611,7 +612,7 @@ export default function App(){
           setTimeout(()=>{el.remove();fl.remove();},1000);
         }
         if(type==='ending'){setConfetti(true);setTimeout(()=>setConfetti(false),4000);}
-      }else{sfx('denied');setScreenShake(true);setTimeout(()=>setScreenShake(false),450);}
+      }else{sfx('denied');setScreenShake(true);setVetoFlash(true);setTimeout(()=>setScreenShake(false),500);setTimeout(()=>setVetoFlash(false),600);}
     });
     socket.on('story-rewind',({text})=>{setRewindTarget(text);});
     socket.on('interrupt-alert',({playerName,conceptName,conceptType,isInterruption})=>{
@@ -794,6 +795,7 @@ export default function App(){
 
   // ═══ RENDER ═══
   return(<div className={`app ${screenShake?'shake':''}`}><div className="scanlines"/>
+    {vetoFlash&&<div className="veto-flash-ov"/>}
     {notif&&<div className="notif">{notif}</div>}
     {vr&&<div className={`vote-flash ${vr.approved?'vf-yes':'vf-no'}`}><div>{vr.msg}</div>{vr.sub&&<div className="vf-sub">{vr.sub}</div>}</div>}
     {!connected&&<div className="conn-bar">◄ RECONECTANDO... ►</div>}

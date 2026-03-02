@@ -123,6 +123,30 @@ function broadcastGS(io,rc){const r=rooms.get(rc);if(!r)return;const pub=pubStat
 function broadcastLobby(io,rc){const r=rooms.get(rc);if(!r)return;const hostSpec=[...r.spectators.values()].filter(s=>s.isHost&&s.connected).map(s=>({id:s.id,name:s.name,isHost:true,connected:s.connected,isSpectatorHost:true}));io.to(rc).emit('lobby-update',{players:[...r.players.values()].filter(p=>p.connected).map(p=>({id:p.id,name:p.name,isHost:p.isHost,connected:p.connected})).concat(hostSpec),code:r.code,config:r.config});}
 
 const app=express(),server=createServer(app);const io=new Server(server,{cors:{origin:'*'},pingInterval:25000,pingTimeout:20000});
+// ═══ ROOM CLEANUP — purge stale/finished rooms periodically ═══
+const ROOM_TTL_FINISHED=10*60*1000; // 10min after game ends
+const ROOM_TTL_LOBBY=30*60*1000;    // 30min idle lobby
+const ROOM_TTL_PLAYING=3*60*60*1000;// 3h max game duration
+setInterval(()=>{
+  const now=Date.now();
+  for(const[code,r]of rooms){
+    const age=now-(r._createdAt||now);
+    const anyConn=[...r.players.values()].some(p=>p.connected)||[...r.spectators.values()].some(s=>s.connected)||r.projectors.size>0;
+    let stale=false;
+    if(r.phase==='finished'&&age>ROOM_TTL_FINISHED) stale=true;
+    if(r.phase==='lobby'&&!anyConn&&age>ROOM_TTL_LOBBY) stale=true;
+    if(r.phase==='playing'&&age>ROOM_TTL_PLAYING) stale=true;
+    if(!anyConn&&age>5*60*1000) stale=true; // 5min with zero players
+    if(stale){
+      serverLog('info','room-purged',{code,phase:r.phase,age:Math.round(age/1000)+'s',connected:anyConn});
+      clearInact(r);clearCardPlay(r);
+      if(r.currentVote?.timer)clearInterval(r.currentVote.timer);
+      if(r.interruptWindow?.timer)clearInterval(r.interruptWindow.timer);
+      if(r._destroyTimer)clearTimeout(r._destroyTimer);
+      closeSession(code);rooms.delete(code);
+    }
+  }
+},60*1000); // check every minute
 app.use(express.static(path.join(__dirname,'../client/dist')));
 app.get('/api/logs',(req,res)=>{res.json(listLogs());});
 app.get('/api/logs/:roomCode',(req,res)=>{const data=getLog(req.params.roomCode.toUpperCase());if(!data)return res.status(404).json({error:'Log no encontrado'});res.type('text/plain').send(data);});
@@ -135,6 +159,9 @@ io.on('connection',(socket)=>{
     for(const[code,r]of rooms){
       const connPlayers=[...r.players.values()].filter(p=>p.connected);
       const connSpecs=[...r.spectators.values()].filter(s=>s.connected);
+      // Hide empty rooms and finished games from browser
+      if(connPlayers.length===0&&connSpecs.length===0&&r.projectors.size===0)continue;
+      if(r.phase==='finished')continue;
       const host=[...r.players.values()].find(p=>p.isHost)||[...r.spectators.values()].find(s=>s.isHost);
       list.push({code,phase:r.phase,playerCount:connPlayers.length,spectatorCount:connSpecs.filter(s=>!s.isHost).length,hostName:host?.name||'?',playerNames:connPlayers.map(p=>p.name),createdAt:r._createdAt||Date.now()});
     }
