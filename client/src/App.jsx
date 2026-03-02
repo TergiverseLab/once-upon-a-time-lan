@@ -490,10 +490,10 @@ function NarratorEditor({story,integrations,sealedPos,frozenPos,pendingVote,play
   function handleDrop(e){if(isDraggingCard){e.preventDefault();e.stopPropagation();}}
 
   return(<div className={`editor-wrap ${activeCard||pendingSel?'card-mode':''}`}>
-    {frozen>0&&!isDraggingCard&&(
+    {frozen>0&&(
       <div className="sealed-zone">
         <div className="sealed-header"><span className="sealed-icon">⚜</span><span className="sealed-label">TEXTO SELLADO</span>{enchCount>0&&<span className="sealed-count">{enchCount} carta{enchCount!==1?'s':''}</span>}</div>
-        <div className="sealed-body"><StoryWords text={sealedText} integrations={integrations} sealedPos={sealedPos} pendingVote={pendingVote} players={players} dropEnabled={isDraggingCard} onWordDrop={onWordDrop} dragOverWord={dragOverWord} setDragOverWord={setDragOverWord}/></div>
+        <div className="sealed-body"><StoryWords text={sealedText} integrations={integrations} sealedPos={sealedPos} pendingVote={pendingVote} players={players} dropEnabled={false} onWordDrop={onWordDrop} dragOverWord={dragOverWord} setDragOverWord={setDragOverWord}/></div>
         <div className="seal-div">⚜ ═══════════════ ⚜</div>
       </div>)}
     {isVoting&&<div className="voting-indicator">⚖ VOTACIÓN EN CURSO — sigue escribiendo</div>}
@@ -502,11 +502,11 @@ function NarratorEditor({story,integrations,sealedPos,frozenPos,pendingVote,play
       <textarea ref={taRef} className="editor-ta" value={localText} onChange={handleChange} onMouseUp={handleMouseUp} onTouchEnd={handleTouchEnd}
         onDragOver={handleDragOver} onDrop={handleDrop}
         placeholder={frozen>0?"Continúa la historia...":"Érase una vez..."} spellCheck={false}
-        style={isDraggingCard?{opacity:0,position:'absolute',pointerEvents:'none'}:{}}/>
-      {isDraggingCard&&<div className="drag-overlay"
+        style={isDraggingCard?{opacity:0}:{}}/>
+      {isDraggingCard&&<div className="drag-overlay" style={{position:'absolute',inset:0,zIndex:2}}
         onDragOver={e=>{e.preventDefault();e.dataTransfer.dropEffect='move';}}
         onDrop={e=>{e.preventDefault();e.stopPropagation();setDragOverWord?.(null);}}>
-        {localText?<StoryWords text={frozen>0?(sealedText+localText):localText} integrations={integrations} sealedPos={sealedPos} pendingVote={pendingVote} players={players} dropEnabled={true} onWordDrop={onWordDrop} dragOverWord={dragOverWord} setDragOverWord={setDragOverWord}/>
+        {localText?<StoryWords text={localText} integrations={integrations?.filter(ig=>ig.start>=frozen).map(ig=>({...ig,start:ig.start-frozen,end:ig.end-frozen}))} sealedPos={Math.max(0,sealedPos-frozen)} pendingVote={pendingVote?{...pendingVote,fragment:pendingVote.fragment?{...pendingVote.fragment,start:pendingVote.fragment.start-frozen,end:pendingVote.fragment.end-frozen}:null}:null} players={players} dropEnabled={true} onWordDrop={(cid,frag)=>onWordDrop(cid,{...frag,start:frag.start+frozen,end:frag.end+frozen})} dragOverWord={dragOverWord} setDragOverWord={setDragOverWord}/>
         :<span className="ph" style={{pointerEvents:'none'}}>Escribe algo primero, luego arrastra...</span>}
       </div>}
     </div>
@@ -515,6 +515,9 @@ function NarratorEditor({story,integrations,sealedPos,frozenPos,pendingVote,play
 
 // ═══ PIXEL BOOK ═══
 function PixelBook(){return(<div className="px-book"><svg viewBox="0 0 64 48" className="px-book-svg" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="8" width="26" height="36" fill="#2a1a0a" stroke="#d4af37" strokeWidth="2"/><rect x="34" y="8" width="26" height="36" fill="#2a1a0a" stroke="#d4af37" strokeWidth="2"/><rect x="6" y="10" width="22" height="32" fill="#3d2b1a"/><rect x="36" y="10" width="22" height="32" fill="#3d2b1a"/><line x1="30" y1="6" x2="30" y2="44" stroke="#d4af37" strokeWidth="3"/>{[0,1,2,3,4,5].map(i=><rect key={i} x="9" y={14+i*5} width={14-i%3*2} height="2" fill="rgba(212,175,55,0.25)"/>)}{[0,1,2,3,4].map(i=><rect key={i} x="39" y={14+i*5} width={16-i%2*4} height="2" fill="rgba(212,175,55,0.25)"/>)}</svg><div className="px-quill"><svg viewBox="0 0 24 32" className="px-quill-svg" xmlns="http://www.w3.org/2000/svg"><path d="M4 28 L8 8 L12 2 L14 6 L10 24 L6 30 Z" fill="#f5e6a3" stroke="#d4af37" strokeWidth="1"/><path d="M6 26 L8 14 L10 10 L10 22 Z" fill="#d4af37" opacity="0.5"/><rect x="4" y="28" width="4" height="3" fill="#4a4235"/></svg></div></div>);}
+
+// ═══ MINI LOGO — small inline version of the title for topbar ═══
+function MiniLogo(){return(<div className="mini-logo"><svg viewBox="0 0 32 24" className="mini-logo-svg" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="4" width="13" height="18" fill="#2a1a0a" stroke="#d4af37" strokeWidth="1"/><rect x="17" y="4" width="13" height="18" fill="#2a1a0a" stroke="#d4af37" strokeWidth="1"/><rect x="3" y="5" width="11" height="16" fill="#3d2b1a"/><rect x="18" y="5" width="11" height="16" fill="#3d2b1a"/><line x1="15" y1="3" x2="15" y2="22" stroke="#d4af37" strokeWidth="1.5"/>{[0,1,2,3].map(i=><rect key={i} x="5" y={7+i*3.5} width={7-i%2*2} height="1" fill="rgba(212,175,55,0.3)"/>)}{[0,1,2].map(i=><rect key={i} x="20" y={7+i*3.5} width={8-i%2*3} height="1" fill="rgba(212,175,55,0.3)"/>)}</svg></div>);}
 
 // ═══ ACTION LOG ═══
 function ActionLog({entries}){const ref=useRef(null);useEffect(()=>{ref.current&&(ref.current.scrollTop=ref.current.scrollHeight);},[entries?.length]);
@@ -586,7 +589,7 @@ export default function App(){
 
   // ═══ SOCKET LISTENERS ═══
   useEffect(()=>{
-    const _evts=['connect','disconnect','lobby-update','game-state','story-updated','vote-tick','interrupt-window-tick','inactivity-tick','narrator-changed','vote-resolved','story-rewind','interrupt-alert','cardplay-tick','kicked'];
+    const _evts=['connect','disconnect','lobby-update','game-state','story-updated','vote-tick','interrupt-window-tick','inactivity-tick','narrator-changed','vote-resolved','story-rewind','interrupt-alert','cardplay-tick','kicked','turn-lost'];
     _evts.forEach(e=>socket.off(e));
     socket.on('connect',()=>{setConnected(true);
       // Auto-reconnect to room on socket reconnection (network drop)
@@ -612,15 +615,13 @@ export default function App(){
       let voterStr='';if(voters?.length){voterStr=voters.map(v=>`${v.approved?'✓':'✗'} ${v.name}${v.reason?' «'+v.reason+'»':''}`).join('  ·  ');}
       setVr({msg:`${approved?'✅':'❌'} ${approved?'APROBADA':'VETADA'}${cardStr}`,sub:voterStr,approved});
       clearTimeout(vrT.current);vrT.current=setTimeout(()=>setVr(null),voterStr?6000:4000);
-      // Consequence banners for the affected player
+      // Consequence banners — only for the affected player, only when result has consequences beyond the flash
       const isMe=initiatorId===myIdRef.current;
       if(isMe&&!approved){
-        if(type==='interrupt')showBanner('❌ Interrupción vetada — pierdes la carta y robas 1',4000);
-        else if(type==='integrate')showBanner('❌ Carta vetada — no se integra',3000);
-        else if(type==='ending')showBanner('❌ Final rechazado — nuevo final + 1 carta narrativa',3500);
+        if(type==='interrupt')showBanner('❌ Pierdes la carta y robas 1',3500);
+        else if(type==='ending')showBanner('❌ Nuevo final + 1 carta narrativa',3500);
       }else if(isMe&&approved){
-        if(type==='integrate')showBanner('✅ Carta integrada al relato',2500);
-        else if(type==='interrupt')showBanner('✅ ¡Interrupción aceptada! Eres narrador',3000);
+        if(type==='interrupt')showBanner('✅ ¡Eres narrador!',2500);
         else if(type==='ending')showBanner('🏆 ¡VICTORIA!',4000);
       }
       if(approved){sfx('approved');setSparkle(true);setTimeout(()=>setSparkle(false),1800);
@@ -672,6 +673,16 @@ export default function App(){
       interruptAlertT.current=setTimeout(()=>setInterruptAlert(null),3000);
     });
     socket.on('cardplay-tick',({seconds,limit})=>{setCardPlay({s:seconds,limit});});
+    socket.on('turn-lost',({playerId,playerName,reason})=>{
+      const isMe=playerId===myIdRef.current;
+      if(reason==='inactivity'){
+        if(isMe){showBanner('⏰ ¡HAS PERDIDO TURNO POR INACTIVIDAD!',4000);sfx('denied');setScreenShake(true);setTimeout(()=>setScreenShake(false),500);}
+        else showBanner(`⏰ ${playerName} perdió turno por inactividad`,3000);
+      }else if(reason==='no-card'){
+        if(isMe){showBanner('⏰ ¡HAS PERDIDO TURNO POR NO JUGAR CARTA!',4000);sfx('denied');setScreenShake(true);setTimeout(()=>setScreenShake(false),500);}
+        else showBanner(`⏰ ${playerName} no jugó carta a tiempo`,3000);
+      }
+    });
     socket.on('kicked',(reason)=>{sessionStorage.removeItem('ouat');setScreen('home');setGs(null);setIsSpec(false);setNotif(reason||'Sesión reemplazada desde otro dispositivo');setTimeout(()=>setNotif(null),4000);});
     return()=>{_evts.forEach(e=>socket.off(e));if(rewindRef.current){clearInterval(rewindRef.current);rewindRef.current=null;}clearTimeout(interruptAlertT.current);};
   },[]);
@@ -792,7 +803,7 @@ export default function App(){
     const pName=gs.players.find(p=>p.id===gs.myId)?.name||'';
     const cl=cardLabel(popup.card);
     if(popup.action==='integrate'){sfx('trumpet');showAnnouncement(`${pName} JUEGA`,cl,TC[popup.card.type]);socket.emit('integrate-concept',data,r=>{if(r?.error)notify(r.error);});}
-    else{sfx('interrupt');showAnnouncement(`⚡ ${pName} INTERRUMPE`,cl,TC[popup.card.type]);socket.emit('interrupt',data,r=>{if(r?.error)notify(r.error);});}
+    else{sfx('interrupt');socket.emit('interrupt',data,r=>{if(r?.error)notify(r.error);});}
     clearSel();
   }
   function doPass(id){sfx('swap');setSwappedId(id);setTimeout(()=>setSwappedId(null),1500);showBanner('↻ Pasas turno — descartas 1 carta, robas 1',3000);socket.emit('pass-turn',{discardConceptId:id},r=>{if(r?.error)notify(r.error);});setShowPass(false);}
@@ -966,9 +977,9 @@ export default function App(){
 
       return(<div className="glayout">
         <div className="my-name-bar"><span className="mname">► {myName||gs.players.find(p=>p.id===gs.myId)?.name||''}</span>
-          {isSpec&&<span className="spec-tag">ESPECTADOR</span>}{isNarr&&<span className="narr-tag">✍ NARRANDO</span>}</div>
+          {isSpec&&<span className="spec-tag">ESPECTADOR</span>}</div>
         <div className="topbar">
-          <div className="tbl"><span className="tlogo">📖</span><span className="ttl">ONCE UPON A TIME</span><span className="rbdg">{gs.code}</span>
+          <div className="tbl"><MiniLogo/><span className="rbdg">{gs.code}</span>
             <button className="bicon" onClick={()=>setShowRules(true)}>?</button>
             <div className="sound-wrap">
               <button className="bicon" onClick={()=>setShowSound(!showSound)} title={muted?'Activar sonido':'Sonido'}>{muted?'🔇':'🔊'}</button>
@@ -1038,10 +1049,10 @@ export default function App(){
 
           <div className={`span${isSpec?' span-spec':''}`}>
             {myPriv&&!isSpec&&<>
-              <div className="slbl">CARTAS ({conceptCards.length}/{handSize})</div>
+              <div className="slbl">{showPass?'↻ ELIGE CARTA A DESCARTAR':'CARTAS'} ({conceptCards.length}/{handSize})</div>
               <div className="hand">{conceptCards.map(c=>(
-                <div key={c.id} className={`gcard ${c.isInterruption?'gcard-interrupt':''} ${activeCard?.id===c.id?'active':''} ${swappedId===c.id?'swapped':''}`} style={{'--tc':c.isInterruption?'#d4af37':TC[c.type]}}
-                  onClick={()=>onCardClick(c)} draggable="true" onDragStart={e=>handleCardDragStart(e,c)} onDragEnd={handleCardDragEnd}>
+                <div key={c.id} className={`gcard ${c.isInterruption?'gcard-interrupt':''} ${activeCard?.id===c.id&&!showPass?'active':''} ${swappedId===c.id?'swapped':''} ${showPass?'disc-mode':''}`} style={{'--tc':c.isInterruption?'#d4af37':TC[c.type]}}
+                  onClick={()=>showPass?doPass(c.id):onCardClick(c)} draggable={showPass?undefined:"true"} onDragStart={showPass?undefined:e=>handleCardDragStart(e,c)} onDragEnd={showPass?undefined:handleCardDragEnd}>
                   <div className="gc-face">{c.isInterruption&&<div className="gc-int-badge">⚜ INTERRUPCIÓN</div>}<CardImg img={c.img} size="lg"/><div className="gc-info"><div className="gc-name">{c.name}</div><div className="gc-type">{c.isInterruption?`↻ Comodín de ${TL[c.type]}`:TL[c.type]}</div></div><div className="gc-icon">{TI[c.type]}</div></div></div>))}
                 {!conceptCards.length&&<div className="empty-h">★ TODAS JUGADAS</div>}
                 {endingCard&&(<div className={`gcard ending-card ${activeCard?.id===endingCard.id?'active':''} ${!allDone?'locked':''}`} style={{'--tc':'#d4af37'}}
@@ -1051,10 +1062,8 @@ export default function App(){
               <div className="drow"><span className="dcount">MAZO {gs.deckSize}</span><span className="dcount">FINALES {gs.endingsDeckSize}</span></div>
               <div className="aarea">
                 {isNarr&&!showPass&&!popup&&<button className="btn-pass" onClick={()=>{if(conceptCards.length===0){sfx('swap');showBanner('↻ Pasas turno — robas 1 carta',3000);socket.emit('pass-turn',{},r=>{if(r?.error)notify(r.error);});}else setShowPass(true);}}>↻ PASAR</button>}
+                {isNarr&&showPass&&<button className="btn-sec" onClick={()=>setShowPass(false)} style={{width:'100%'}}>✕ CANCELAR</button>}
                 {!isNarr&&!popup&&<>{!alreadyVetoed&&<button className="btn-veto" onClick={doVeto}>✖ VETAR ({gs.vetoVotes?.length||0}/{gs.vetoThreshold})</button>}{alreadyVetoed&&<div className="vdone">VETO OK</div>}</>}</div>
-              {showPass&&<div className="pass-ov"><div className="pass-mod"><div className="pm-t">↻ DESCARTA UNA CARTA</div>
-                <div className="pm-cards">{conceptCards.map(c=>(<div key={c.id} className="gcard disc" style={{'--tc':TC[c.type]}} onClick={()=>doPass(c.id)}><div className="gc-face"><CardImg img={c.img} size="md"/><div className="gc-info"><div className="gc-name">{c.name}</div></div></div></div>))}</div>
-                <button className="btn-sec" onClick={()=>setShowPass(false)}>CANCELAR</button></div></div>}
               {showVetoModal&&<div className="pass-ov"><div className="pass-mod veto-mod">
                 <div className="pm-t">🚫 VETAR NARRADOR</div>
                 <div className="veto-reasons">
