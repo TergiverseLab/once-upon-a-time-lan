@@ -1,4 +1,4 @@
-import{useState,useEffect,useRef,useCallback}from'react';
+import{useState,useEffect,useRef,useCallback,useMemo,memo}from'react';
 import socket from'./socket';
 import'./App.css';
 
@@ -15,7 +15,9 @@ function typeTag(c){return c?`${TI[c.type]} ${TL[c.type]}`:'';}
 
 // ═══ AUDIO — global mute ═══
 let _muted=false;
-function sfx(type){if(_muted)return;try{const ac=new(window.AudioContext||window.webkitAudioContext)();const t=ac.currentTime;
+let _audioCtx=null;
+function getAudioCtx(){if(!_audioCtx)_audioCtx=new(window.AudioContext||window.webkitAudioContext)();if(_audioCtx.state==='suspended')_audioCtx.resume().catch(()=>{});return _audioCtx;}
+function sfx(type){if(_muted)return;try{const ac=getAudioCtx();const t=ac.currentTime;
   const mk=(freq,dur,vol=.08)=>{const o=ac.createOscillator();const g=ac.createGain();o.type='square';o.frequency.value=freq;g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(.001,t+dur);o.connect(g);g.connect(ac.destination);o.start(t);o.stop(t+dur+.01);};
   const seq=(freqs,gap=.07,dur=.15,vol=.08)=>freqs.forEach((f,i)=>{if(!f)return;const o=ac.createOscillator();const g=ac.createGain();o.type='square';o.frequency.value=f;g.gain.setValueAtTime(vol,t+i*gap);g.gain.exponentialRampToValueAtTime(.001,t+i*gap+dur);o.connect(g);g.connect(ac.destination);o.start(t+i*gap);o.stop(t+i*gap+dur+.01);});
   switch(type){case'tick':mk(880,.08,.12);break;case'tickUrgent':mk(1200,.12,.15);break;case'cardSelect':seq([523,659,784]);break;case'textSelect':mk(660,.12);break;case'denied':mk(150,.35,.12);break;case'interrupt':seq([880,1100],.1,.12,.12);break;case'veto':mk(100,.4,.12);break;case'swap':mk(600,.1);break;case'vote':mk(660,.08);break;case'turn':seq([523,784],.12,.3,.1);break;case'victory':seq([523,659,784,1047,784,1047,1319],.12,.4,.06);break;case'approved':seq([523,659,784,1047],.08,.2,.1);break;case'trumpet':seq([392,523,659,784],.1,.25,.12);break;}}catch(e){}}
@@ -263,8 +265,8 @@ function parseWords(text){if(!text)return[];const ws=[];let i=0;
 function CardImg({img,size}){if(!img)return null;return <img src={`/cards/${img}`} alt="" className={`cimg cimg-${size||'md'}`} loading="lazy"/>;}
 
 // ═══ STORY WORDS — renders enchanted/sealed/pending spans ═══
-function StoryWords({text,integrations,sealedPos,pendingVote,players,dropEnabled,onWordDrop,dragOverWord,setDragOverWord}){
-  if(!text)return null;const ws=parseWords(text);
+const StoryWords=memo(function StoryWords({text,integrations,sealedPos,pendingVote,players,dropEnabled,onWordDrop,dragOverWord,setDragOverWord,tappable,onWordTap}){
+  if(!text)return null;const ws=useMemo(()=>parseWords(text),[text]);
   const pvS=pendingVote?.fragment?.start??-1;const pvE=pendingVote?.fragment?.end??-1;
   const pvWords=[];ws.forEach((w,idx)=>{if(!w.sp&&pvS>=0&&w.s>=pvS&&w.e<=pvE)pvWords.push(idx);});
   const firstPv=pvWords[0]??-1;const lastPv=pvWords[pvWords.length-1]??-1;
@@ -272,33 +274,37 @@ function StoryWords({text,integrations,sealedPos,pendingVote,players,dropEnabled
   const pvColor=pIdx>=0?pc(pIdx):null;
   const isInt=pendingVote?.type==='interrupt';
 
-  function wordDragHandlers(w){
-    if(!dropEnabled||w.sp)return {};
-    return {
-      onDragOver:e=>{e.preventDefault();e.dataTransfer.dropEffect='move';setDragOverWord?.({s:w.s,e:w.e,t:w.t});},
-      onDragEnter:e=>{e.preventDefault();setDragOverWord?.({s:w.s,e:w.e,t:w.t});},
-      onDragLeave:()=>{},
-      onDrop:e=>{e.preventDefault();e.stopPropagation();const cardId=e.dataTransfer.getData('cardId');if(cardId&&onWordDrop)onWordDrop(cardId,{text:w.t,start:w.s,end:w.e});setDragOverWord?.(null);}
-    };
+  function wordHandlers(w){
+    const h={};
+    // Tap support: when a card is selected, tapping a word plays it there
+    if(tappable&&!w.sp){h.onClick=()=>onWordTap?.({text:w.t,start:w.s,end:w.e});}
+    if(!dropEnabled||w.sp)return h;
+    h.onDragOver=e=>{e.preventDefault();e.dataTransfer.dropEffect='move';setDragOverWord?.({s:w.s,e:w.e,t:w.t});};
+    h.onDragEnter=e=>{e.preventDefault();setDragOverWord?.({s:w.s,e:w.e,t:w.t});};
+    h.onDragLeave=()=>{};
+    h.onDrop=e=>{e.preventDefault();e.stopPropagation();const cardId=e.dataTransfer.getData('cardId');if(cardId&&onWordDrop)onWordDrop(cardId,{text:w.t,start:w.s,end:w.e});setDragOverWord?.(null);};
+    return h;
   }
   const dw=dragOverWord;
+  const tap=tappable;
 
   return(<>{ws.map((w,idx)=>{
     if(w.sp)return <span key={idx}>{w.t==='\n'?<br/>:' '}</span>;
     const isDropTarget=dropEnabled&&!w.sp;
     const isHover=dw&&w.s===dw.s;
+    const isTap=tap&&!w.sp;
     let ig=null;if(integrations?.length)for(const x of integrations)if(w.s>=x.start&&w.e<=x.end){ig=x;break;}
     const inVote=pvS>=0&&w.s>=pvS&&w.e<=pvE;
     if(ig){const pi=players?.findIndex(p=>p.id===ig.playerId)??-1;const ic=pi>=0?pc(pi):null;
-      return <span key={idx} id={inVote&&idx===firstPv?'pv-anchor':undefined} className={`sw sw-enchanted ${isHover?'sw-drophover':''}`} style={{'--ic':TC[ig.conceptType],'--pc':ic?.l||TC[ig.conceptType]}} title={`✦ ${ig.conceptName} — ${ig.playerName}`} {...wordDragHandlers(w)}>{w.t}</span>;}
+      return <span key={idx} id={inVote&&idx===firstPv?'pv-anchor':undefined} className={`sw sw-enchanted ${isHover?'sw-drophover':''} ${isTap?'sw-tappable':''}`} style={{'--ic':TC[ig.conceptType],'--pc':ic?.l||TC[ig.conceptType]}} title={`✦ ${ig.conceptName} — ${ig.playerName}`} {...wordHandlers(w)}>{w.t}</span>;}
     if(inVote&&!ig){const isF=idx===firstPv;const isL=idx===lastPv;
       return(<span key={idx} id={isF?'pv-anchor':undefined}
-        className={`sw sw-pending ${isF?'pv-first':''} ${isL?'pv-last':''} ${isInt?'pv-interrupt':''} ${isHover?'sw-drophover':''}`}
-        style={{'--pc':pvColor?.l||'#fff','--pbg':pvColor?.bg||'#333'}} {...wordDragHandlers(w)}>{w.t}</span>);}
-    if(w.e<=sealedPos)return <span key={idx} className={`sw sw-sealed ${isHover?'sw-drophover':''} ${isDropTarget?'sw-droptarget':''}`} {...wordDragHandlers(w)}>{w.t}</span>;
-    return <span key={idx} className={`sw ${isHover?'sw-drophover':''} ${isDropTarget?'sw-droptarget':''}`} {...wordDragHandlers(w)}>{w.t}</span>;
+        className={`sw sw-pending ${isF?'pv-first':''} ${isL?'pv-last':''} ${isInt?'pv-interrupt':''} ${isHover?'sw-drophover':''} ${isTap?'sw-tappable':''}`}
+        style={{'--pc':pvColor?.l||'#fff','--pbg':pvColor?.bg||'#333'}} {...wordHandlers(w)}>{w.t}</span>);}
+    if(w.e<=sealedPos)return <span key={idx} className={`sw sw-sealed ${isHover?'sw-drophover':''} ${isDropTarget?'sw-droptarget':''} ${isTap?'sw-tappable':''}`} {...wordHandlers(w)}>{w.t}</span>;
+    return <span key={idx} className={`sw ${isHover?'sw-drophover':''} ${isDropTarget?'sw-droptarget':''} ${isTap?'sw-tappable':''}`} {...wordHandlers(w)}>{w.t}</span>;
   })}</>);
-}
+});
 
 // ═══ FLOATING CARD OVERLAY — tracks #pv-anchor via rAF ═══
 function FloatingCardOverlay({vote,players}){
@@ -352,9 +358,9 @@ function VoteCorner({vote,players,myId,onVote,isSpec,config}){
       </div>))}</div>}
     <div className="vc-dots">{(vote.eligible||[]).map(pid=>{const v=vote.votedPlayerIds?.includes(pid);return <span key={pid} className={`vc-dot ${v?'voted':''} ${pid===myId?'me':''}`} style={v?{background:pC.l,borderColor:pC.l}:{}} title={players.find(p=>p.id===pid)?.name}/>})}</div>
     {canVote&&!isSpec&&<>
+      <div className="vc-hint2">Si nadie veta antes del tiempo, se aprueba</div>
       <input className="vc-reason" value={reason} onChange={e=>setReason(e.target.value)} placeholder="Motivo del veto (opcional)" maxLength={80}/>
       <div className="vc-btns"><button className="vc-yes" onClick={submitApprove}>OK</button><button className="vc-no" onClick={submitVeto}>✗ VETAR</button></div>
-      <div className="vc-hint2">Si nadie veta antes del tiempo, se aprueba</div>
     </>}
     {hasVoted&&<div className="vc-wait">{didApprove?'VOTO ENVIADO ✓':'VETO ENVIADO ■'}</div>}
     {isSpec&&<div className="vc-wait">OBSERVANDO</div>}
@@ -362,11 +368,11 @@ function VoteCorner({vote,players,myId,onVote,isSpec,config}){
 }
 
 // ═══ INTERRUPT WINDOW — golden popup for eligible players ═══
-function InterruptWindow({iw,myHand,myId,narratorId,onUse,onDecline}){
+function InterruptWindow({iw,myHand,myId,narratorId,onUse,onDecline,config}){
   if(!iw||!myHand)return null;
   const compatCards=myHand.filter(c=>c.isInterruption&&c.type===iw.cardType);
   if(!compatCards.length||myId===narratorId)return null;
-  const maxT=8;const pct=Math.min(100,(iw.timeLeft/maxT)*100);
+  const maxT=config?.interruptWindowTime||8;const pct=Math.min(100,(iw.timeLeft/maxT)*100);
   return(<div className="iw-overlay"><div className="iw-box">
     <div className="iw-glow"/>
     <div className="iw-bar"><div className="iw-bar-fill" style={{width:pct+'%'}}/></div>
@@ -445,6 +451,12 @@ function NarratorEditor({story,integrations,sealedPos,frozenPos,pendingVote,play
     const idx=localText.lastIndexOf(text);
     if(idx>=0)onTextSelected({text,start:frozen+idx,end:frozen+idx+text.length});
   }
+  function handleTouchEnd(){setTimeout(()=>{
+    const sel=window.getSelection();if(!sel||sel.rangeCount===0||!sel.toString().trim())return;
+    const text=sel.toString().trim();
+    const idx=localText.lastIndexOf(text);
+    if(idx>=0)onTextSelected({text,start:frozen+idx,end:frozen+idx+text.length});
+  },100);}
 
   // Prevent textarea from accepting dropped content
   function handleDragOver(e){if(isDraggingCard){e.preventDefault();e.dataTransfer.dropEffect='none';}}
@@ -460,7 +472,7 @@ function NarratorEditor({story,integrations,sealedPos,frozenPos,pendingVote,play
     {isVoting&&<div className="voting-indicator">⚖ VOTACIÓN EN CURSO — sigue escribiendo</div>}
     {isInterruptWindow&&<div className="voting-indicator iw-indicator">⚜ VENTANA DE INTERRUPCIÓN — sigue escribiendo</div>}
     <div style={{position:'relative',flex:1,display:'flex',flexDirection:'column'}}>
-      <textarea ref={taRef} className="editor-ta" value={localText} onChange={handleChange} onMouseUp={handleMouseUp}
+      <textarea ref={taRef} className="editor-ta" value={localText} onChange={handleChange} onMouseUp={handleMouseUp} onTouchEnd={handleTouchEnd}
         onDragOver={handleDragOver} onDrop={handleDrop}
         placeholder={frozen>0?"Continúa la historia...":"Érase una vez..."} spellCheck={false}
         style={isDraggingCard?{opacity:0,position:'absolute',pointerEvents:'none'}:{}}/>
@@ -524,15 +536,18 @@ export default function App(){
   const[confetti,setConfetti]=useState(false);
   const[interruptAlert,setInterruptAlert]=useState(null);const interruptAlertT=useRef(null);
   const[cardPlay,setCardPlay]=useState({s:0,limit:120});
-  const vrT=useRef(null);const prevNarr=useRef(null);
+  const vrT=useRef(null);const prevNarr=useRef(null);const cfgTimer=useRef(null);const myIdRef=useRef(null);
+  const[storyUnread,setStoryUnread]=useState(false);
 
-  useEffect(()=>()=>{clearPopupTimer();clearTimeout(vrT.current);stopMusic();},[]);
+  useEffect(()=>{myIdRef.current=myId;},[myId]);
+  useEffect(()=>()=>{clearPopupTimer();clearTimeout(vrT.current);clearTimeout(cfgTimer.current);clearTimeout(storyThrottleRef.current);stopMusic();},[]);
   const notify=useCallback((msg,dur=3000)=>{setNotif(msg);setTimeout(()=>setNotif(null),dur);},[]);
   function doToggleMute(){const m=toggleMute();setMuted(m);if(!m&&screen==='game')startMusic(musicTrack);}
   function doChangeTrack(id){setMusicTrack(id);_currentTrack=id;if(screen==='game'&&!muted)startMusic(id);}
   function doChangeVol(v){setMusicVol(v);setMusicVolume(v/100);}
   // Start music when game begins
   useEffect(()=>{if(screen==='game'&&!muted)startMusic(musicTrack);if(screen!=='game')stopMusic();return()=>stopMusic();},[screen]);
+  useEffect(()=>{if(!showSound)return;const h=e=>{if(!e.target.closest('.sound-wrap'))setShowSound(false);};document.addEventListener('click',h);return()=>document.removeEventListener('click',h);},[showSound]);
   function showBanner(t,dur=3000){setBanner(t);setTimeout(()=>setBanner(null),dur);}
   function showAnnouncement(t,sub,color,dur=2500){setAnnounce({text:t,sub,color});setTimeout(()=>setAnnounce(null),dur);}
   function startPopupTimer(){clearPopupTimer();let left=15;setPopupTime(left);popupTimerRef.current=setInterval(()=>{left--;setPopupTime(left);if(left<=3)sfx('tickUrgent');if(left<=0){clearPopupTimer();clearSel();notify('⏰ TIME OUT');}},1000);}
@@ -540,6 +555,8 @@ export default function App(){
 
   // ═══ SOCKET LISTENERS ═══
   useEffect(()=>{
+    const _evts=['connect','disconnect','lobby-update','game-state','story-updated','vote-tick','interrupt-window-tick','inactivity-tick','narrator-changed','vote-resolved','story-rewind','interrupt-alert','cardplay-tick','kicked'];
+    _evts.forEach(e=>socket.off(e));
     socket.on('connect',()=>{setConnected(true);
       // Auto-reconnect to room on socket reconnection (network drop)
       const s=sessionStorage.getItem('ouat');if(s){try{const d=JSON.parse(s);socket.emit('reconnect-player',{roomCode:d.roomCode,playerId:d.myId},r=>{if(r?.success){setMyId(d.myId);setRoomCode(d.roomCode);}else{sessionStorage.removeItem('ouat');}});}catch(e){sessionStorage.removeItem('ouat');}}
@@ -549,7 +566,7 @@ export default function App(){
       console.log('[game-state] narratorId=',state.narratorId,'myId=',state.myId,'frozenPos=',state.frozenPos,'sealedPos=',state.sealedPos,'integrations=',state.integrations?.length,'vote=',state.currentVote?.type||'none');
       setGs(state);if(state.isSpectator)setIsSpec(true);if(state.phase!=='lobby')setScreen('game');
     });
-    socket.on('story-updated',({text})=>{setGs(p=>p?{...p,story:text}:p);setPendingSel(null);});
+    socket.on('story-updated',({text})=>{setGs(p=>{if(!p||p.story===text)return p;return{...p,story:text};});setPendingSel(null);});
     socket.on('vote-tick',({timeLeft})=>setGs(p=>{if(!p?.currentVote)return p;return{...p,currentVote:{...p.currentVote,timeLeft}};}));
     socket.on('inactivity-tick',({seconds,limit})=>{setInact({s:seconds,limit});if(seconds>=limit-5&&seconds<limit)sfx('tickUrgent');else if(seconds>=limit-10&&seconds%2===0)sfx('tick');});
     socket.on('interrupt-window-tick',({timeLeft})=>setGs(p=>{if(!p?.interruptWindow)return p;return{...p,interruptWindow:{...p.interruptWindow,timeLeft}};}));
@@ -565,7 +582,7 @@ export default function App(){
       setVr({msg:`${approved?'✅':'❌'} ${approved?'APROBADA':'VETADA'}${cardStr}`,sub:voterStr,approved});
       clearTimeout(vrT.current);vrT.current=setTimeout(()=>setVr(null),voterStr?6000:4000);
       // Consequence banners for the affected player
-      const isMe=initiatorId===myId;
+      const isMe=initiatorId===myIdRef.current;
       if(isMe&&!approved){
         if(type==='interrupt')showBanner('❌ Interrupción vetada — pierdes la carta y robas 1',4000);
         else if(type==='integrate')showBanner('❌ Carta vetada — no se integra',3000);
@@ -603,7 +620,8 @@ export default function App(){
       interruptAlertT.current=setTimeout(()=>setInterruptAlert(null),3000);
     });
     socket.on('cardplay-tick',({seconds,limit})=>{setCardPlay({s:seconds,limit});});
-    return()=>{['connect','disconnect','lobby-update','game-state','story-updated','vote-tick','interrupt-window-tick','inactivity-tick','narrator-changed','vote-resolved','story-rewind','interrupt-alert','cardplay-tick'].forEach(e=>socket.off(e));};
+    socket.on('kicked',(reason)=>{sessionStorage.removeItem('ouat');setScreen('home');setGs(null);setIsSpec(false);setNotif(reason||'Sesión reemplazada desde otro dispositivo');setTimeout(()=>setNotif(null),4000);});
+    return()=>{_evts.forEach(e=>socket.off(e));if(rewindRef.current){clearInterval(rewindRef.current);rewindRef.current=null;}clearTimeout(interruptAlertT.current);};
   },[]);
 
   // ═══ EFFECTS — narrator change detection ═══
@@ -697,13 +715,13 @@ export default function App(){
   function handleCardDragStart(e,card){
     e.dataTransfer.setData('cardId',card.id);
     e.dataTransfer.effectAllowed='move';
-    // Create a small drag image
     const el=e.target.cloneNode(true);el.style.cssText='width:80px;height:auto;opacity:0.8;position:absolute;top:-1000px;';
     document.body.appendChild(el);e.dataTransfer.setDragImage(el,40,40);
     setTimeout(()=>document.body.removeChild(el),0);
+    e.target.classList.add('dragging');
     setIsDraggingCard(true);
   }
-  function handleCardDragEnd(){setIsDraggingCard(false);setDragOverWord(null);}
+  function handleCardDragEnd(e){e.target.classList.remove('dragging');setIsDraggingCard(false);setDragOverWord(null);}
 
   // ═══ ACTIONS ═══
   function fetchRooms(){setRoomsLoading(true);socket.emit('list-rooms',null,list=>{setActiveRooms(list||[]);setRoomsLoading(false);});}
@@ -712,8 +730,9 @@ export default function App(){
   function joinRoom2(code,name){if(!name)return notify('Escribe tu nombre');if(!code)return notify('Escribe el código');sessionStorage.removeItem('ouat');setMyName(name);socket.emit('join-room',{roomCode:code,playerName:name},r=>{if(r.error)return notify(r.error);setMyId(r.playerId);setRoomCode(r.code);setScreen('lobby');if(r.reconnected){notify('🔄 ¡Reconectado!',2000);setIsSpec(false);}else if(r.isSpectator)setIsSpec(true);});}
   function joinProj(code){socket.emit('join-projector',{roomCode:code},r=>{if(r.error)return notify(r.error);setRoomCode(r.code);setScreen('projector');});}
   function doStart(){socket.emit('start-game',null,r=>{if(r?.error)notify(r.error);});}
-  function updateStory(text){socket.emit('story-update',{text});}
-  function updateConfig(cfg){socket.emit('update-config',{config:cfg},r=>{if(r?.error)notify(r.error);else notify('✅ CONFIG OK',1500);});}
+  const storyThrottleRef=useRef(null);const pendingStoryRef=useRef(null);
+  function updateStory(text){pendingStoryRef.current=text;if(!storyThrottleRef.current){socket.emit('story-update',{text});storyThrottleRef.current=setTimeout(()=>{storyThrottleRef.current=null;if(pendingStoryRef.current!==text)socket.emit('story-update',{text:pendingStoryRef.current});},150);}}
+  function updateConfig(patch){const next={...lobbyData.config,...patch};setLobbyData(p=>({...p,config:next}));clearTimeout(cfgTimer.current);cfgTimer.current=setTimeout(()=>socket.emit('update-config',{config:next},r=>{if(r?.error)notify(r.error);}),300);}
   function goHome(){stopMusic();socket.emit('leave-room');setScreen('home');setGs(null);setIsSpec(false);setShowSound(false);setShowCfg(false);sessionStorage.removeItem('ouat');}
   function doAction(){
     if(!popup)return;const data={conceptId:popup.card.id,fragment:popup.fragment,justification:just.trim()};
@@ -728,16 +747,50 @@ export default function App(){
   function doVeto(){setShowVetoModal(true);setVetoReason('');}
   function confirmVeto(reason){sfx('veto');socket.emit('veto-narrator',{reason:reason||vetoReason},r=>{if(r?.error)notify(r.error);});setShowVetoModal(false);setVetoReason('');}
   function doVote(a,reason){sfx('vote');socket.emit('cast-vote',{approve:a,reason:reason||''});}
-  function useGoldenInterrupt(cardId){sfx('interrupt');setIwDismissed(true);socket.emit('use-interrupt-window',{conceptId:cardId},r=>{if(r?.error)notify(r.error);});}
+  function useGoldenInterrupt(cardId){sfx('interrupt');socket.emit('use-interrupt-window',{conceptId:cardId},r=>{if(r?.error){notify(r.error);return;}setIwDismissed(true);});}
   function declineInterrupt(){setIwDismissed(true);}
+  function doReclaim(playerId){socket.emit('reclaim-seat',{roomCode,playerId},r=>{if(r?.error)return notify(r.error);setMyId(r.playerId);setIsSpec(false);notify('🔄 ¡Puesto reclamado!',2000);});}
   function doRestart(){socket.emit('restart-game',null,r=>{if(r?.error)notify(r.error);setScreen('lobby');setIsSpec(false);});}
-  function downloadStory(){const b=new Blob([gs?.story||''],{type:'text/plain;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='historia.txt';a.click();}
+  function downloadStory(){
+    const story=gs?.story||'';const igs=gs?.integrations||[];const players=gs?.players||[];
+    // Build HTML with colored integrations
+    let html='';let i=0;
+    // Sort integrations by start position
+    const sorted=[...igs].sort((a,b)=>a.start-b.start);
+    for(const ig of sorted){
+      if(ig.start>i)html+=escHtml(story.substring(i,ig.start));
+      const color=TC[ig.conceptType]||'#d4af37';
+      html+=`<span style="color:${color};font-weight:bold;border-bottom:2px solid ${color};cursor:help;" title="${escHtml(ig.conceptName)} — ${escHtml(ig.playerName)} (${TL[ig.conceptType]||ig.conceptType})">${escHtml(story.substring(ig.start,ig.end))}</span>`;
+      i=ig.end;
+    }
+    if(i<story.length)html+=escHtml(story.substring(i));
+    html=html.replace(/\n/g,'<br>');
+    // Build legend
+    let legend='<h2 style="color:#d4af37;font-family:serif;margin-top:30px;border-top:2px solid #d4af37;padding-top:15px;">Cartas jugadas</h2><table style="border-collapse:collapse;width:100%;margin-top:10px;">';
+    legend+='<tr style="border-bottom:2px solid #333;"><th style="text-align:left;padding:6px;color:#888;">Carta</th><th style="text-align:left;padding:6px;color:#888;">Tipo</th><th style="text-align:left;padding:6px;color:#888;">Jugador</th><th style="text-align:left;padding:6px;color:#888;">Fragmento</th></tr>';
+    for(const ig of sorted){
+      const color=TC[ig.conceptType]||'#d4af37';
+      legend+=`<tr style="border-bottom:1px solid #222;"><td style="padding:6px;color:${color};font-weight:bold;">${TI[ig.conceptType]||''} ${escHtml(ig.conceptName)}${ig.isInterruption?' ↻':''}</td><td style="padding:6px;color:#888;">${TL[ig.conceptType]||''}</td><td style="padding:6px;color:#ccc;">${escHtml(ig.playerName)}</td><td style="padding:6px;color:#aaa;font-style:italic;">«${escHtml(ig.fragment||'')}»</td></tr>`;
+    }
+    legend+='</table>';
+    // Players summary
+    let playersSummary='<h2 style="color:#d4af37;font-family:serif;margin-top:20px;">Jugadores</h2><ul style="list-style:none;padding:0;">';
+    const winner=gs?.winnerId;
+    for(const p of players){
+      const isW=p.id===winner;
+      playersSummary+=`<li style="padding:4px 0;color:${isW?'#d4af37':'#ccc'};">${isW?'🏆 ':''}${escHtml(p.name)} — ${isW?'GANADOR':Math.max(0,p.handCount-1)+' cartas restantes'}</li>`;
+    }
+    playersSummary+='</ul>';
+    const fullHtml=`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Once Upon a Time — Historia</title><style>body{background:#0a0a12;color:#c8c0b0;font-family:Georgia,serif;max-width:800px;margin:0 auto;padding:40px 20px;line-height:1.8;font-size:18px;}h1{font-family:'Cinzel Decorative',serif;color:#d4af37;text-align:center;font-size:32px;margin-bottom:5px;}h2{font-size:20px;}.subtitle{text-align:center;color:#7a6f60;font-size:14px;margin-bottom:30px;}@media print{body{background:#fff;color:#222;}h1,h2{color:#8B6914;}span[style]{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}</style></head><body><h1>Once Upon a Time</h1><div class="subtitle">${gs?.code||''} — ${new Date().toLocaleDateString('es')}</div><div style="border:1px solid #333;padding:20px;border-radius:4px;margin-bottom:20px;">${html}</div>${legend}${playersSummary}<div style="margin-top:30px;text-align:center;color:#4a4235;font-size:12px;">Generado con Once Upon a Time LAN</div></body></html>`;
+    const w=window.open('','_blank');if(w){w.document.write(fullHtml);w.document.close();}
+  }
+  function escHtml(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
   const isFinished=gs?.phase==='finished';
 
-  // ═══ Story auto-scroll (must be at component level, not inside IIFE) ═══
+  // ═══ Story auto-scroll — smart: only if near bottom ═══
   const storyRef=useRef(null);
-  useEffect(()=>{if(storyRef.current)storyRef.current.scrollTop=storyRef.current.scrollHeight;},[gs?.story]);
+  useEffect(()=>{const el=storyRef.current;if(!el)return;const atBottom=el.scrollHeight-el.scrollTop-el.clientHeight<80;if(atBottom){el.scrollTop=el.scrollHeight;setStoryUnread(false);}else{setStoryUnread(true);}},[gs?.story]);
 
   // ═══ RENDER ═══
   return(<div className={`app ${screenShake?'shake':''}`}><div className="scanlines"/>
@@ -771,7 +824,7 @@ export default function App(){
       {[{t:'OBJETIVO',d:'Juega todas tus cartas mencionando sus conceptos en la historia y llévala a tu final secreto.'},{t:'JUGAR CARTA',d:'Selecciona texto + carta (o carta + texto). Ambos órdenes funcionan.'},{t:'SELLADO',d:'Cada vez que se juega una carta, todo el texto hasta ese punto se sella y no se puede borrar.'},{t:'INTERRUMPIR',d:'Si NO eres narrador: selecciona texto + carta. Si es rechazada, pierdes la carta y robas 1.'},{t:'VOTAR',d:'La votación aparece sin bloquear la partida. El narrador sigue escribiendo.'},{t:'FINAL',d:'Cuando hayas jugado todas tus cartas, se desbloquea tu FINAL. Solo el narrador.'},{t:'PASAR',d:'Descarta 1 carta → robas 1 nueva.'}].map((r,i)=><div key={i} className="rule"><div className="rule-t">► {r.t}</div><div className="rule-d">{r.d}</div></div>)}</div></div>}
 
     {/* ═══ HOME ═══ */}
-    {screen==='home'&&<div className="screen ctr"><div className="title-block"><PixelBook/><h1 className="main-title">ONCE UPON<br/>A TIME</h1><div className="sub-lbl">— ÉRASE UNA VEZ —</div></div>
+    {screen==='home'&&<div key="home" className="screen ctr screen-enter"><div className="title-block"><PixelBook/><h1 className="main-title">ONCE UPON<br/>A TIME</h1><div className="sub-lbl">— ÉRASE UNA VEZ —</div></div>
       <div className="card hcard"><div className="tbar"><button className={`tb ${homeTab==='create'?'on':''}`} onClick={()=>setHomeTab('create')}>CREAR</button><button className={`tb ${homeTab==='join'?'on':''}`} onClick={()=>setHomeTab('join')}>UNIRSE</button><button className={`tb ${homeTab==='rooms'?'on':''}`} onClick={()=>setHomeTab('rooms')}>SALAS</button><button className={`tb ${homeTab==='projector'?'on':''}`} onClick={()=>setHomeTab('projector')}>TV</button></div>
         {homeTab!=='projector'&&homeTab!=='rooms'&&<input className="inp" value={homeName} onChange={e=>setHomeName(e.target.value)} placeholder="► Tu nombre" maxLength={16} onKeyDown={e=>{if(e.key==='Enter'&&homeTab==='create')doCreateRoom(homeName.trim());}}/>}
         {(homeTab==='join'||homeTab==='projector')&&<input className="inp" value={homeCode} onChange={e=>setHomeCode(e.target.value.toUpperCase())} placeholder="► Código" maxLength={12}/>}
@@ -807,7 +860,7 @@ export default function App(){
 
     {/* ═══ LOBBY ═══ */}
     {screen==='lobby'&&(()=>{const{players,config}=lobbyData;const isHost=players.find(p=>p.id===myId)?.isHost;const activePlayers=players.filter(p=>!p.isSpectatorHost);
-      return(<div className="screen ctr"><h2 className="stitle">■ SALA ■</h2>
+      return(<div key="lobby" className="screen ctr screen-enter"><h2 className="stitle">■ SALA ■</h2>
         <div className="code-box" onClick={()=>navigator.clipboard?.writeText(roomCode)}><span className="cl">CÓDIGO</span><span className="cv">{roomCode}</span><span className="ch">► copiar</span></div>
         <div className="card" style={{maxWidth:500,width:'100%'}}><div className="slbl">PLAYERS ({activePlayers.length}/6)</div>
           <div className="llist">{players.map((p,i)=>(<div key={p.id} className="lp"><div className="av" style={{background:pc(i).bg}}>{p.name[0]?.toUpperCase()}</div><span className="pn">{p.name}</span>{p.isHost&&!p.isSpectatorHost&&<span className="bdg host">♛</span>}{p.isSpectatorHost&&<span className="bdg host">♛ HOST</span>}{p.id===myId&&<span className="bdg you">TÚ</span>}</div>))}</div>
@@ -826,6 +879,7 @@ export default function App(){
               <div className="cfg-row"><label>Límite jugar carta (s)</label><input type="number" min="30" max="300" step="10" value={config.cardPlayLimit||120} onChange={e=>updateConfig({cardPlayLimit:+e.target.value})}/><span className="cfg-hint">{Math.floor((config.cardPlayLimit||120)/60)}m {(config.cardPlayLimit||120)%60}s</span></div>
             </div>}
             <button className="btn-pri" onClick={doStart} disabled={activePlayers.length<2} style={{marginTop:12}}>► START</button>
+            {activePlayers.length<2&&<div className="hint">Se necesitan al menos 2 jugadores</div>}
           </>}
           {!isHost&&<div className="hint">Esperando al host...</div>}
         </div>
@@ -835,7 +889,7 @@ export default function App(){
         </div></div>);})()}
 
     {/* ═══ GAME — loading fallback ═══ */}
-    {screen==='game'&&!gs&&<div className="screen ctr"><div className="stitle">CARGANDO PARTIDA...</div><button className="btn-ghost" style={{marginTop:16}} onClick={goHome}>◄ VOLVER AL MENÚ</button></div>}
+    {screen==='game'&&!gs&&<div key="game-loading" className="screen ctr screen-enter"><div className="stitle">CARGANDO PARTIDA...</div><button className="btn-ghost" style={{marginTop:16}} onClick={goHome}>◄ VOLVER AL MENÚ</button></div>}
 
     {/* ═══ GAME ═══ */}
     {screen==='game'&&gs&&!isFinished&&(()=>{
@@ -850,6 +904,12 @@ export default function App(){
         let idx=story.lastIndexOf(text);
         if(idx>=0&&idx<sealedPos){const idx2=story.indexOf(text,sealedPos);if(idx2>=0)idx=idx2;}
         if(idx>=0)onTextSelected({text,start:idx,end:idx+text.length});}
+      function handleReaderTouchEnd(){setTimeout(()=>{const sel=window.getSelection();if(!sel||sel.rangeCount===0||!sel.toString().trim())return;
+        const text=sel.toString().trim();const story=gs.story||'';
+        let idx=story.lastIndexOf(text);
+        if(idx>=0&&idx<sealedPos){const idx2=story.indexOf(text,sealedPos);if(idx2>=0)idx=idx2;}
+        if(idx>=0)onTextSelected({text,start:idx,end:idx+text.length});},100);}
+      function handleWordTap(fragment){onTextSelected(fragment);}
 
       return(<div className="glayout">
         <div className="my-name-bar"><span className="mname">► {myName||gs.players.find(p=>p.id===gs.myId)?.name||''}</span>
@@ -868,7 +928,7 @@ export default function App(){
                   <button key={t.id} className={`sm-track ${musicTrack===t.id?'on':''}`} onClick={()=>doChangeTrack(t.id)}>{musicTrack===t.id?'♪ ':'  '}{t.name}</button>
                 ))}
                 <div className="sm-sep"/>
-                <div className="sm-vol"><span>VOL</span><input type="range" min="0" max="40" value={musicVol} onChange={e=>doChangeVol(+e.target.value)}/><span>{musicVol}%</span></div>
+                <div className="sm-vol"><span>VOL</span><input type="range" min="0" max="100" value={musicVol} onChange={e=>doChangeVol(+e.target.value)}/><span>{musicVol}%</span></div>
                 <button className="sm-close" onClick={()=>setShowSound(false)}>✕ CERRAR</button>
               </div>}
             </div></div>
@@ -897,12 +957,13 @@ export default function App(){
           <div className="scol"><div className="slbl story-lbl">HISTORIA</div>
             {isNarr
               ?<NarratorEditor story={gs.story} integrations={gs.integrations} sealedPos={sealedPos} frozenPos={frozenPos} pendingVote={gs.currentVote} players={gs.players} activeCard={activeCard} pendingSel={pendingSel} isVoting={isVoting} isInterruptWindow={!!gs.interruptWindow} onUpdate={updateStory} onTextSelected={onTextSelected} isDraggingCard={isDraggingCard} onWordDrop={onCardDrop} dragOverWord={dragOverWord} setDragOverWord={setDragOverWord}/>
-              :(<div ref={storyRef} className={`sdisp ${activeCard||pendingSel?'card-mode':''} ${isDraggingCard?'drag-active':''}`} onMouseUp={handleReaderMouseUp}
+              :(<div ref={storyRef} className={`sdisp ${activeCard||pendingSel?'card-mode':''} ${isDraggingCard?'drag-active':''}`} onMouseUp={handleReaderMouseUp} onTouchEnd={handleReaderTouchEnd}
                 onDragOver={e=>{if(isDraggingCard){e.preventDefault();e.dataTransfer.dropEffect='move';}}}
                 onDrop={e=>{if(isDraggingCard){e.preventDefault();setDragOverWord(null);}}}>
-                <StoryWords text={gs.story} integrations={gs.integrations} sealedPos={sealedPos} pendingVote={gs.currentVote} players={gs.players} dropEnabled={isDraggingCard} onWordDrop={onCardDrop} dragOverWord={dragOverWord} setDragOverWord={setDragOverWord}/>
+                <StoryWords text={gs.story} integrations={gs.integrations} sealedPos={sealedPos} pendingVote={gs.currentVote} players={gs.players} dropEnabled={isDraggingCard} onWordDrop={onCardDrop} dragOverWord={dragOverWord} setDragOverWord={setDragOverWord} tappable={!!activeCard&&!isDraggingCard} onWordTap={handleWordTap}/>
                 {gs.story&&gs.phase==='playing'&&<span className="story-cursor"/>}
                 {!gs.story&&<span className="ph">...</span>}</div>)}
+            {storyUnread&&!isNarr&&<button className="scroll-indicator" onClick={()=>{const el=storyRef.current;if(el){el.scrollTop=el.scrollHeight;setStoryUnread(false);}}}>↓ Nuevo texto</button>}
             {popup&&(<div className="ipopup">
               <div className="ip-card-vis" style={{'--tc':TC[popup.card.type]}}>{popup.card.img?<img src={`/cards/${popup.card.img}`} className="ipcv-img" alt=""/>:<div className="ipcv-top">{TI[popup.card.type]}</div>}<div className="ipcv-name">{popup.card.name}</div><div className="ipcv-type">{popup.card.isInterruption?wcLabel(popup.card):TL[popup.card.type]}</div></div>
               <div className="ip-right">
@@ -920,7 +981,7 @@ export default function App(){
               </div>
             </div></div>
 
-          <div className="span">
+          <div className={`span${isSpec?' span-spec':''}`}>
             {myPriv&&!isSpec&&<>
               <div className="slbl">CARTAS ({conceptCards.length}/{handSize})</div>
               <div className="hand">{conceptCards.map(c=>(
@@ -950,21 +1011,24 @@ export default function App(){
                   <button className="btn-veto" disabled={!vetoReason.trim()} onClick={()=>confirmVeto()}>🚫 ENVIAR VETO</button></div>
               </div></div>}
             </>}
-            {isSpec&&<div className="spec-n">◄ ESPECTADOR ►</div>}
+            {isSpec&&<div className="spec-n">◄ ESPECTADOR ►
+              {gs.players.filter(p=>!p.connected).map(p=>(
+                <button key={p.id} className="btn-reclaim" onClick={()=>doReclaim(p.id)}>🔄 RECLAMAR PUESTO DE {p.name}</button>))}
+            </div>}
             <div className="slbl" style={{marginTop:8}}>PLAYERS</div>
             <div className="plist">{gs.players.map((p,i)=>(<div key={p.id} className={`pli ${p.id===gs.narratorId?'pnarr':''} ${!p.connected?'pdc':''}`}><div className="avsm" style={{background:pc(i).bg}}>{p.name[0]}</div><div className="plinfo"><span className="pln">{p.name}{p.id===gs.myId?' (tú)':''}</span><span className="plst">{Math.max(0,p.handCount-1)}/{handSize} ✅{p.integratedCount}</span></div>{p.id===gs.narratorId&&<span>✍</span>}</div>))}</div>
           </div>
         </div>
 
         {/* ═══ GOLDEN INTERRUPT WINDOW ═══ */}
-        {gs.interruptWindow&&!isSpec&&!iwDismissed&&<InterruptWindow iw={gs.interruptWindow} myHand={myPriv?.hand} myId={gs.myId} narratorId={gs.narratorId} onUse={useGoldenInterrupt} onDecline={declineInterrupt}/>}
+        {gs.interruptWindow&&!isSpec&&!iwDismissed&&<InterruptWindow iw={gs.interruptWindow} myHand={myPriv?.hand} myId={gs.myId} narratorId={gs.narratorId} onUse={useGoldenInterrupt} onDecline={declineInterrupt} config={gs.config}/>}
       </div>);})()}
 
     {/* ═══ VICTORY ═══ */}
     {screen==='game'&&gs&&isFinished&&(()=>{const w=gs.players.find(p=>p.id===gs.winnerId);const wi=gs.players.findIndex(p=>p.id===gs.winnerId);const isHost=gs.players.find(p=>p.id===gs.myId)?.isHost||gs.isHost;
       const ranked=[...gs.players].sort((a,b)=>{if(a.id===gs.winnerId)return-1;if(b.id===gs.winnerId)return 1;return(a.handCount-1)-(b.handCount-1);});
       const medals=['🥇','🥈','🥉'];
-      return(<div className="screen ctr"><div className="vcrown">♛</div><h1 className="vtit">VICTORIA</h1>
+      return(<div key="victory" className="screen ctr screen-enter"><div className="vcrown">♛</div><h1 className="vtit">VICTORIA</h1>
         <div className="avlg" style={{background:pc(wi).bg}}>{w?.name?.[0]}</div><div className="vname" style={{color:pc(wi).l}}>{w?.name}</div><div className="vsub">ha completado su historia</div>
         <div className="v-ranking">{ranked.map((p,i)=>{const pi=gs.players.findIndex(x=>x.id===p.id);const cc=Math.max(0,p.handCount-1);const isW=p.id===gs.winnerId;return(
           <div key={p.id} className={`v-rank-row ${isW?'v-rank-winner':''} ${p.id===gs.myId?'v-rank-me':''}`}>
