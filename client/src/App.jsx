@@ -26,57 +26,69 @@ function cardLabelShort(c){return c?`${TI[c.type]} ${c.name}`:'';}
 
 // ═══ CAT CRITIC — pixel art SVG avatar ═══
 function CatCritic({speaking}){
+  const[mouthOpen,setMouthOpen]=useState(false);
+  useEffect(()=>{if(!speaking){setMouthOpen(false);return;}const iv=setInterval(()=>setMouthOpen(p=>!p),150);return()=>clearInterval(iv);},[speaking]);
   return(<svg viewBox="0 0 32 32" className="cat-critic-svg" xmlns="http://www.w3.org/2000/svg">
-    {/* Ears */}
     <polygon points="6,10 9,2 12,10" fill="#4a4a5a"/>
     <polygon points="7,9 9,4 11,9" fill="#6a6a7a"/>
     <polygon points="20,10 23,2 26,10" fill="#4a4a5a"/>
     <polygon points="21,9 23,4 25,9" fill="#6a6a7a"/>
-    {/* Head */}
     <rect x="6" y="8" width="20" height="16" rx="3" fill="#5a5a6a"/>
     <rect x="7" y="9" width="18" height="14" rx="2" fill="#6a6a7a"/>
-    {/* Glasses frames */}
     <rect x="8" y="12" width="6" height="5" rx="1" fill="none" stroke="#d4af37" strokeWidth="1"/>
     <rect x="18" y="12" width="6" height="5" rx="1" fill="none" stroke="#d4af37" strokeWidth="1"/>
     <line x1="14" y1="14" x2="18" y2="14" stroke="#d4af37" strokeWidth="0.8"/>
-    {/* Eyes behind glasses */}
     <rect x="10" y="13.5" width="2" height="2.5" rx="0.5" fill="#1a1a2a"/>
     <rect x="20" y="13.5" width="2" height="2.5" rx="0.5" fill="#1a1a2a"/>
     <rect x="10.5" y="14" width="1" height="1" fill="#8cf"/>
     <rect x="20.5" y="14" width="1" height="1" fill="#8cf"/>
-    {/* Nose */}
     <polygon points="15,17 17,17 16,18.5" fill="#e88"/>
-    {/* Mouth — two states */}
-    {speaking
+    {mouthOpen
       ?<ellipse cx="16" cy="20" rx="3" ry="2" fill="#2a1a1a" stroke="#4a4a5a" strokeWidth="0.5"/>
       :<line x1="14" y1="19.5" x2="18" y2="19.5" stroke="#4a4a5a" strokeWidth="0.8"/>}
-    {/* Whiskers */}
     <line x1="2" y1="16" x2="8" y2="17" stroke="#888" strokeWidth="0.4"/>
     <line x1="2" y1="18" x2="8" y2="18" stroke="#888" strokeWidth="0.4"/>
     <line x1="24" y1="17" x2="30" y2="16" stroke="#888" strokeWidth="0.4"/>
     <line x1="24" y1="18" x2="30" y2="18" stroke="#888" strokeWidth="0.4"/>
-    {/* Bow tie */}
     <polygon points="13,24 16,25.5 16,22.5" fill="#c62828"/>
     <polygon points="19,24 16,25.5 16,22.5" fill="#e53935"/>
     <circle cx="16" cy="24" r="1" fill="#d4af37"/>
   </svg>);
 }
 
-// ═══ COMMENTATOR PANEL ═══
-const Commentator=memo(function Commentator({text,speaking,visible,onToggle}){
+// ═══ COMMENTATOR PANEL — draggable, comic style ═══
+const Commentator=memo(function Commentator({text,speaking,visible}){
   const[minimized,setMinimized]=useState(false);
   const[hasNew,setHasNew]=useState(false);
+  const[pos,setPos]=useState({x:window.innerWidth-420,y:window.innerHeight-320});
+  const dragRef=useRef(null);
   const prevText=useRef('');
-  useEffect(()=>{if(text&&text!==prevText.current){prevText.current=text;if(minimized)setHasNew(true);}},[text,minimized]);
+  useEffect(()=>{if(text&&text!==prevText.current){prevText.current=text;if(minimized){setHasNew(true);}setMinimized(false);}},[text,minimized]);
+  // Dragging
+  const onDragStart=useCallback((startX,startY)=>{
+    const ox=pos.x,oy=pos.y;
+    const onMove=(mx,my)=>{setPos({x:Math.max(0,Math.min(window.innerWidth-200,ox+mx-startX)),y:Math.max(0,Math.min(window.innerHeight-100,oy+my-startY))});};
+    const onMM=e=>onMove(e.clientX,e.clientY);
+    const onTM=e=>{if(e.touches[0])onMove(e.touches[0].clientX,e.touches[0].clientY);};
+    const onUp=()=>{document.removeEventListener('mousemove',onMM);document.removeEventListener('mouseup',onUp);document.removeEventListener('touchmove',onTM);document.removeEventListener('touchend',onUp);};
+    document.addEventListener('mousemove',onMM);document.addEventListener('mouseup',onUp);document.addEventListener('touchmove',onTM,{passive:true});document.addEventListener('touchend',onUp);
+  },[pos]);
   if(!visible)return null;
-  return(<div className={`commentator ${minimized?'comm-min':''}`}>
-    <div className="comm-avatar" onClick={()=>{setMinimized(!minimized);if(!minimized)setHasNew(false);}}>
-      <CatCritic speaking={speaking}/>
-      {hasNew&&minimized&&<div className="comm-badge"/>}
+  return(<div className={`commentator ${minimized?'comm-min':''}`} style={{left:pos.x,top:pos.y}} ref={dragRef}>
+    <div className="comm-drag-handle" onMouseDown={e=>{e.preventDefault();onDragStart(e.clientX,e.clientY);}} onTouchStart={e=>{if(e.touches[0])onDragStart(e.touches[0].clientX,e.touches[0].clientY);}}>
+      <span className="comm-drag-dots">⋮⋮</span><span>EL GATO CRÍTICO</span>
     </div>
-    {!minimized&&<div className="comm-bubble">
-      <div className="comm-text">{text||'...'}{speaking&&<span className="comm-cursor">|</span>}</div>
-    </div>}
+    <div className="comm-body">
+      <div className={`comm-avatar${speaking?' comm-speaking':''}`} onClick={()=>{setMinimized(!minimized);if(!minimized)setHasNew(false);}}>
+        <CatCritic speaking={speaking}/>
+        {speaking&&<div className="comm-sparkles"><span className="sparkle s1">✦</span><span className="sparkle s2">★</span><span className="sparkle s3">✧</span><span className="sparkle s4">⚝</span><span className="sparkle s5">✦</span><span className="sparkle s6">★</span></div>}
+        {hasNew&&minimized&&<div className="comm-badge"/>}
+      </div>
+      {!minimized&&<div className="comm-bubble">
+        <div className="comm-bubble-arrow"/>
+        <div className="comm-text">{text||'...'}{speaking&&<span className="comm-cursor">|</span>}</div>
+      </div>}
+    </div>
   </div>);
 });
 function typeTag(c){return c?`${TI[c.type]} ${TL[c.type]}`:'';}

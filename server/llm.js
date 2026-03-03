@@ -38,6 +38,9 @@ function buildMessages(event,context){
     case'veto':
       userMsg=`VETO AL NARRADOR: Los jugadores han vetado al narrador ${event.narratorName}. El turno pasa al siguiente.\nMOTIVO: ${event.reason||'sin motivo declarado'}\nHISTORIA RECIENTE: "${context.recentStory}"`;
       break;
+    case'narrating':
+      userMsg=`NARRACIÓN EN CURSO: ${event.playerName} está escribiendo. Comenta el desarrollo narrativo, la dirección de la historia, la calidad literaria o cualquier cosa que te llame la atención como crítico.\nHISTORIA RECIENTE: "${context.recentStory}"`;
+      break;
     case'pass':
       userMsg=`PASE DE TURNO: ${event.playerName} ha pasado turno y descartado una carta. No pudo o no quiso seguir narrando.\nHISTORIA RECIENTE: "${context.recentStory}"`;
       break;
