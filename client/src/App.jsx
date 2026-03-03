@@ -12,11 +12,73 @@ const AVATARS=[
   {emoji:'🦉',name:'Búho Viejo'},{emoji:'🧙',name:'Mago Errante'},{emoji:'🐉',name:'Dragón Bebé'},
   {emoji:'🦄',name:'Unicornio'},{emoji:'🧚',name:'Hada Traviesa'},{emoji:'👹',name:'Troll Gruñón'},
   {emoji:'🐻',name:'Oso Dormilón'},{emoji:'🦅',name:'Grifo Real'},{emoji:'🍄',name:'Duende Loco'}];
+const AI_PROVIDERS={
+  groq:{name:'Groq',models:['llama-3.3-70b-versatile','llama-3.1-8b-instant','mixtral-8x7b-32768'],keyUrl:'https://console.groq.com/keys'},
+  mistral:{name:'Mistral',models:['mistral-small-latest','mistral-large-latest'],keyUrl:'https://console.mistral.ai/api-keys'},
+  openai:{name:'OpenAI',models:['gpt-4o-mini','gpt-4o'],keyUrl:'https://platform.openai.com/api-keys'},
+  gemini:{name:'Gemini',models:['gemini-2.0-flash','gemini-1.5-pro'],keyUrl:'https://aistudio.google.com/apikey'},
+};
 function pc(i){return PC[Math.max(0,i)%PC.length];}
 function avatar(i){return AVATARS[Math.max(0,i)%AVATARS.length];}
 function wcLabel(c){return c?.isInterruption?`Comodín de ${TL[c.type]}`:TL[c.type]||'';}
 function cardLabel(c){if(!c)return'?';return`${TI[c.type]||''} ${c.name} (${TL[c.type]||c.type})${c.isInterruption?' ↻':''}`;}
 function cardLabelShort(c){return c?`${TI[c.type]} ${c.name}`:'';}
+
+// ═══ CAT CRITIC — pixel art SVG avatar ═══
+function CatCritic({speaking}){
+  return(<svg viewBox="0 0 32 32" className="cat-critic-svg" xmlns="http://www.w3.org/2000/svg">
+    {/* Ears */}
+    <polygon points="6,10 9,2 12,10" fill="#4a4a5a"/>
+    <polygon points="7,9 9,4 11,9" fill="#6a6a7a"/>
+    <polygon points="20,10 23,2 26,10" fill="#4a4a5a"/>
+    <polygon points="21,9 23,4 25,9" fill="#6a6a7a"/>
+    {/* Head */}
+    <rect x="6" y="8" width="20" height="16" rx="3" fill="#5a5a6a"/>
+    <rect x="7" y="9" width="18" height="14" rx="2" fill="#6a6a7a"/>
+    {/* Glasses frames */}
+    <rect x="8" y="12" width="6" height="5" rx="1" fill="none" stroke="#d4af37" strokeWidth="1"/>
+    <rect x="18" y="12" width="6" height="5" rx="1" fill="none" stroke="#d4af37" strokeWidth="1"/>
+    <line x1="14" y1="14" x2="18" y2="14" stroke="#d4af37" strokeWidth="0.8"/>
+    {/* Eyes behind glasses */}
+    <rect x="10" y="13.5" width="2" height="2.5" rx="0.5" fill="#1a1a2a"/>
+    <rect x="20" y="13.5" width="2" height="2.5" rx="0.5" fill="#1a1a2a"/>
+    <rect x="10.5" y="14" width="1" height="1" fill="#8cf"/>
+    <rect x="20.5" y="14" width="1" height="1" fill="#8cf"/>
+    {/* Nose */}
+    <polygon points="15,17 17,17 16,18.5" fill="#e88"/>
+    {/* Mouth — two states */}
+    {speaking
+      ?<ellipse cx="16" cy="20" rx="3" ry="2" fill="#2a1a1a" stroke="#4a4a5a" strokeWidth="0.5"/>
+      :<line x1="14" y1="19.5" x2="18" y2="19.5" stroke="#4a4a5a" strokeWidth="0.8"/>}
+    {/* Whiskers */}
+    <line x1="2" y1="16" x2="8" y2="17" stroke="#888" strokeWidth="0.4"/>
+    <line x1="2" y1="18" x2="8" y2="18" stroke="#888" strokeWidth="0.4"/>
+    <line x1="24" y1="17" x2="30" y2="16" stroke="#888" strokeWidth="0.4"/>
+    <line x1="24" y1="18" x2="30" y2="18" stroke="#888" strokeWidth="0.4"/>
+    {/* Bow tie */}
+    <polygon points="13,24 16,25.5 16,22.5" fill="#c62828"/>
+    <polygon points="19,24 16,25.5 16,22.5" fill="#e53935"/>
+    <circle cx="16" cy="24" r="1" fill="#d4af37"/>
+  </svg>);
+}
+
+// ═══ COMMENTATOR PANEL ═══
+const Commentator=memo(function Commentator({text,speaking,visible,onToggle}){
+  const[minimized,setMinimized]=useState(false);
+  const[hasNew,setHasNew]=useState(false);
+  const prevText=useRef('');
+  useEffect(()=>{if(text&&text!==prevText.current){prevText.current=text;if(minimized)setHasNew(true);}},[text,minimized]);
+  if(!visible)return null;
+  return(<div className={`commentator ${minimized?'comm-min':''}`}>
+    <div className="comm-avatar" onClick={()=>{setMinimized(!minimized);if(!minimized)setHasNew(false);}}>
+      <CatCritic speaking={speaking}/>
+      {hasNew&&minimized&&<div className="comm-badge"/>}
+    </div>
+    {!minimized&&<div className="comm-bubble">
+      <div className="comm-text">{text||'...'}{speaking&&<span className="comm-cursor">|</span>}</div>
+    </div>}
+  </div>);
+});
 function typeTag(c){return c?`${TI[c.type]} ${TL[c.type]}`:'';}
 
 // ═══ AUDIO — global mute ═══
@@ -581,6 +643,12 @@ export default function App(){
   const[cardPlay,setCardPlay]=useState({s:0,limit:120});
   const vrT=useRef(null);const prevNarr=useRef(null);const cfgTimer=useRef(null);const myIdRef=useRef(null);
   const[storyUnread,setStoryUnread]=useState(false);
+  // AI Commentator state
+  const[aiCfg,setAiCfg]=useState(()=>{try{return JSON.parse(localStorage.getItem('ouat-ai'))||{provider:'groq',apiKey:'',model:'llama-3.3-70b-versatile'};}catch(e){return{provider:'groq',apiKey:'',model:'llama-3.3-70b-versatile'};}});
+  const[showAiCfg,setShowAiCfg]=useState(false);
+  const[commentatorEnabled,setCommentatorEnabled]=useState(false);
+  const[commText,setCommText]=useState('');
+  const[commSpeaking,setCommSpeaking]=useState(false);
 
   useEffect(()=>{myIdRef.current=myId;},[myId]);
   function setDragOverWordSync(v){dragOverWordRef.current=v;setDragOverWord(v);}
@@ -592,6 +660,11 @@ export default function App(){
   // Start music when game begins
   useEffect(()=>{if(screen==='game'&&!muted)startMusic(musicTrack);if(screen!=='game')stopMusic();return()=>stopMusic();},[screen]);
   useEffect(()=>{if(!showSound)return;const h=e=>{if(!e.target.closest('.sound-wrap'))setShowSound(false);};document.addEventListener('click',h);return()=>document.removeEventListener('click',h);},[showSound]);
+  function saveAiCfg(patch){const next={...aiCfg,...patch};setAiCfg(next);localStorage.setItem('ouat-ai',JSON.stringify(next));}
+  function sendAiConfig(enabled){
+    if(enabled&&aiCfg.apiKey){socket.emit('set-ai-config',{provider:aiCfg.provider,apiKey:aiCfg.apiKey,model:aiCfg.model,enabled:true});setCommentatorEnabled(true);}
+    else{socket.emit('set-ai-config',{enabled:false});setCommentatorEnabled(false);}
+  }
   function showBanner(t,dur=3000){setBanner(t);setTimeout(()=>setBanner(null),dur);}
   function showAnnouncement(t,sub,color,dur=2500){setAnnounce({text:t,sub,color});setTimeout(()=>setAnnounce(null),dur);}
   function startPopupTimer(){clearPopupTimer();let left=15;setPopupTime(left);popupTimerRef.current=setInterval(()=>{left--;setPopupTime(left);if(left<=3)sfx('tickUrgent');if(left<=0){clearPopupTimer();clearSel();notify('⏰ TIME OUT');}},1000);}
@@ -599,7 +672,7 @@ export default function App(){
 
   // ═══ SOCKET LISTENERS ═══
   useEffect(()=>{
-    const _evts=['connect','disconnect','lobby-update','game-state','story-updated','vote-tick','interrupt-window-tick','inactivity-tick','narrator-changed','vote-resolved','story-rewind','interrupt-alert','cardplay-tick','kicked','turn-lost'];
+    const _evts=['connect','disconnect','lobby-update','game-state','story-updated','vote-tick','interrupt-window-tick','inactivity-tick','narrator-changed','vote-resolved','story-rewind','interrupt-alert','cardplay-tick','kicked','turn-lost','commentator-start','commentator-chunk','commentator-done','commentator-error'];
     _evts.forEach(e=>socket.off(e));
     socket.on('connect',()=>{setConnected(true);
       // Auto-reconnect to room on socket reconnection (network drop)
@@ -633,7 +706,7 @@ export default function App(){
         if(type==='interrupt')showBanner('❌ Pierdes la carta y robas 1',3500);
         else if(type==='ending')showBanner('❌ Nuevo final + 1 carta narrativa',3500);
       }else if(isMe&&approved){
-        if(type==='interrupt')showBanner('✅ ¡Eres narrador!',2500);
+        if(type==='interrupt')showBanner('✅ ¡Sigue narrando!',2500);
         else if(type==='ending')showBanner('🏆 ¡VICTORIA!',4000);
       }
       if(approved){sfx('approved');setSparkle(true);setTimeout(()=>setSparkle(false),1800);
@@ -696,6 +769,11 @@ export default function App(){
       }
     });
     socket.on('kicked',(reason)=>{sessionStorage.removeItem('ouat');setScreen('home');setGs(null);setIsSpec(false);setNotif(reason||'Sesión reemplazada desde otro dispositivo');setTimeout(()=>setNotif(null),4000);});
+    // ═══ COMMENTATOR ═══
+    socket.on('commentator-start',()=>{setCommSpeaking(true);setCommText('');});
+    socket.on('commentator-chunk',({full})=>{setCommText(full);});
+    socket.on('commentator-done',({text})=>{setCommText(text);setCommSpeaking(false);});
+    socket.on('commentator-error',({error})=>{setCommSpeaking(false);console.warn('[commentator]',error);});
     return()=>{_evts.forEach(e=>socket.off(e));if(rewindRef.current){clearInterval(rewindRef.current);rewindRef.current=null;}clearTimeout(interruptAlertT.current);};
   },[]);
 
@@ -941,7 +1019,25 @@ export default function App(){
             </div>);})}</div>
           {homeTab==='rooms'&&<input className="inp" value={homeName} onChange={e=>setHomeName(e.target.value)} placeholder="► Tu nombre (para unirte)" maxLength={16} style={{marginTop:8}}/>}
         </div>}
-      </div><div style={{display:'flex',gap:10}}><button className="btn-ghost" onClick={()=>setShowRules(true)}>? REGLAS</button><button className="btn-ghost" onClick={()=>setShowTutorial(true)}>📖 TUTORIAL</button></div></div>}
+      </div><div style={{display:'flex',gap:10,flexWrap:'wrap',justifyContent:'center'}}><button className="btn-ghost" onClick={()=>setShowRules(true)}>? REGLAS</button><button className="btn-ghost" onClick={()=>setShowTutorial(true)}>📖 TUTORIAL</button><button className={`btn-ghost ${aiCfg.apiKey?'ai-configured':''}`} onClick={()=>setShowAiCfg(!showAiCfg)}>🐱 COMENTARISTA IA</button></div>
+      {showAiCfg&&<div className="ai-cfg-panel card">
+        <div className="ai-cfg-head"><CatCritic speaking={false}/><span className="ai-cfg-title">COMENTARISTA IA</span></div>
+        <div className="ai-cfg-desc">Un gato critico literario que comenta la partida con sarcasmo y pedanteria ensayistica.</div>
+        <div className="cfg-row"><label>Proveedor</label>
+          <select value={aiCfg.provider} onChange={e=>{const p=e.target.value;saveAiCfg({provider:p,model:AI_PROVIDERS[p].models[0]});}}>
+            {Object.entries(AI_PROVIDERS).map(([k,v])=><option key={k} value={k}>{v.name}</option>)}
+          </select></div>
+        <div className="cfg-row"><label>Modelo</label>
+          <select value={aiCfg.model} onChange={e=>saveAiCfg({model:e.target.value})}>
+            {AI_PROVIDERS[aiCfg.provider]?.models.map(m=><option key={m} value={m}>{m}</option>)}
+          </select></div>
+        <div className="cfg-row"><label>API Key</label>
+          <input type="password" value={aiCfg.apiKey} onChange={e=>saveAiCfg({apiKey:e.target.value})} placeholder="sk-..." style={{flex:1,minWidth:0}}/></div>
+        <a className="ai-key-link" href={AI_PROVIDERS[aiCfg.provider]?.keyUrl} target="_blank" rel="noopener noreferrer">► Obtener API Key de {AI_PROVIDERS[aiCfg.provider]?.name}</a>
+        {aiCfg.apiKey&&<div className="ai-cfg-ok">API Key configurada</div>}
+        {!aiCfg.apiKey&&<div className="ai-cfg-warn">Sin API Key — el comentarista no funcionara</div>}
+      </div>}
+      </div>}
 
     {showTutorial&&<Tutorial onClose={()=>setShowTutorial(false)}/>}
 
@@ -964,6 +1060,10 @@ export default function App(){
               <div className="cfg-row"><label>Inactividad máx (s)</label><input type="number" min="15" max="120" value={config.inactLimit||30} onChange={e=>updateConfig({inactLimit:+e.target.value})}/></div>
               <div className="cfg-row"><label>Ventana interrupción (s)</label><input type="number" min="4" max="15" value={config.interruptWindowTime||8} onChange={e=>updateConfig({interruptWindowTime:+e.target.value})}/></div>
               <div className="cfg-row"><label>Límite jugar carta (s)</label><input type="number" min="30" max="300" step="10" value={config.cardPlayLimit||120} onChange={e=>updateConfig({cardPlayLimit:+e.target.value})}/><span className="cfg-hint">{Math.floor((config.cardPlayLimit||120)/60)}m {(config.cardPlayLimit||120)%60}s</span></div>
+              <div className="cfg-row cfg-ai-row"><label>🐱 Comentarista IA</label>
+                <button className={`btn-sec ai-toggle ${commentatorEnabled?'ai-on':''}`} onClick={()=>sendAiConfig(!commentatorEnabled)} disabled={!aiCfg.apiKey}>{commentatorEnabled?'ACTIVADO':'DESACTIVADO'}</button>
+                {!aiCfg.apiKey&&<span className="cfg-hint" style={{color:'var(--red)'}}>Configura API Key en portada</span>}
+              </div>
             </div>}
             <button className="btn-pri" onClick={doStart} disabled={activePlayers.length<2} style={{marginTop:12}}>► START</button>
             {activePlayers.length<2&&<div className="hint">Se necesitan al menos 2 jugadores</div>}
@@ -1112,6 +1212,8 @@ export default function App(){
         {gs.interruptWindow&&!isSpec&&!iwDismissed&&<InterruptWindow iw={gs.interruptWindow} myHand={myPriv?.hand} myId={gs.myId} narratorId={gs.narratorId} onUse={useGoldenInterrupt} onDecline={declineInterrupt} config={gs.config}/>}
         {/* ═══ FLOATING VOTE PANEL ═══ */}
         {isVoting&&gs.currentVote&&<FloatingVote vote={gs.currentVote} players={gs.players} myId={gs.myId} onVote={doVote} isSpec={isSpec} config={gs.config}/>}
+        {/* ═══ AI COMMENTATOR ═══ */}
+        <Commentator text={commText} speaking={commSpeaking} visible={!!gs.hasCommentator} onToggle={()=>{}}/>
       </div>);})()}
 
     {/* ═══ VICTORY ═══ */}
@@ -1131,7 +1233,8 @@ export default function App(){
         <div style={{display:'flex',gap:12,marginTop:20,flexWrap:'wrap',justifyContent:'center'}}>
           <button className="btn-gold" onClick={downloadWord}>▼ WORD</button><button className="btn-gold" onClick={downloadPdf}>▼ PDF</button>
           {isHost&&<button className="btn-pri" onClick={doRestart} style={{maxWidth:220}}>► NUEVA PARTIDA</button>}
-          <button className="btn-sec" onClick={goHome}>◄ MENÚ</button></div></div>);})()}
+          <button className="btn-sec" onClick={goHome}>◄ MENÚ</button></div>
+        <Commentator text={commText} speaking={commSpeaking} visible={!!gs.hasCommentator} onToggle={()=>{}}/></div>);})()}
 
     {/* ═══ PROJECTOR ═══ */}
     {screen==='projector'&&gs&&(()=>{const n=gs.players?.find(p=>p.id===gs.narratorId);const sp=gs.sealedPos||0;
