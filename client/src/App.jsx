@@ -27,7 +27,7 @@ function cardLabelShort(c){return c?`${TI[c.type]} ${c.name}`:'';}
 // ═══ CAT CRITIC — pixel art SVG avatar ═══
 function CatCritic({speaking}){
   const[mouthOpen,setMouthOpen]=useState(false);
-  useEffect(()=>{if(!speaking){setMouthOpen(false);return;}const iv=setInterval(()=>setMouthOpen(p=>!p),150);return()=>clearInterval(iv);},[speaking]);
+  useEffect(()=>{if(!speaking){setMouthOpen(false);return;}const iv=setInterval(()=>setMouthOpen(p=>!p),350);return()=>clearInterval(iv);},[speaking]);
   return(<svg viewBox="0 0 32 32" className="cat-critic-svg" xmlns="http://www.w3.org/2000/svg">
     <polygon points="6,10 9,2 12,10" fill="#4a4a5a"/>
     <polygon points="7,9 9,4 11,9" fill="#6a6a7a"/>
@@ -56,15 +56,42 @@ function CatCritic({speaking}){
   </svg>);
 }
 
-// ═══ COMMENTATOR PANEL — draggable, comic style ═══
+// ═══ REACTION EMOJIS — detect sentiment from commentary ═══
+const REACTIONS=[
+  {re:/golazo|magistral|brillante|genial|sublime|maravilla|espectacular|prodigio/i,emojis:['🌟','✨','👏','🏆','💎']},
+  {re:/destruir|terrible|lamentable|pobre|desastroso|abominable|horror|espanto/i,emojis:['💀','😤','🗑️','📉','🪦']},
+  {re:/increíble|inesperado|sorpresa|giro|vuelco|plot twist/i,emojis:['😱','🤯','🔥','⚡','💥']},
+  {re:/interesante|curioso|peculiar|hmm|veamos|debo reconocer/i,emojis:['🧐','😏','🎭','📖','🍷']},
+  {re:/pesar|regañadientes|admitir|reconozco/i,emojis:['😒','🙄','👀','💅','🎩']},
+];
+function pickReaction(txt){
+  if(!txt)return['📝','🐱'];
+  for(const r of REACTIONS)if(r.re.test(txt))return r.emojis.slice(0,3);
+  return['📝','🐱'];
+}
+
+// ═══ COMMENTATOR PANEL — frameless draggable cat ═══
 const Commentator=memo(function Commentator({text,speaking,visible}){
   const[minimized,setMinimized]=useState(false);
   const[hasNew,setHasNew]=useState(false);
-  const[pos,setPos]=useState({x:window.innerWidth-420,y:window.innerHeight-320});
+  const[pos,setPos]=useState({x:window.innerWidth-380,y:window.innerHeight-280});
   const dragRef=useRef(null);
   const prevText=useRef('');
-  useEffect(()=>{if(text&&text!==prevText.current){prevText.current=text;if(minimized){setHasNew(true);}setMinimized(false);}},[text,minimized]);
-  // Dragging
+  const textRef=useRef(null);
+  // RPG text reveal — characters appear progressively
+  const[revealIdx,setRevealIdx]=useState(0);
+  useEffect(()=>{if(!text){setRevealIdx(0);return;}if(revealIdx>=text.length)return;const t=setTimeout(()=>setRevealIdx(p=>Math.min(p+2,text.length)),25);return()=>clearTimeout(t);},[text,revealIdx]);
+  // Reset reveal on new comment
+  useEffect(()=>{if(text&&text!==prevText.current){if(text.length<prevText.current.length){setRevealIdx(0);}prevText.current=text;if(minimized){setHasNew(true);}setMinimized(false);}},[text,minimized]);
+  // Scroll indicator
+  const[canScroll,setCanScroll]=useState(false);
+  useEffect(()=>{const el=textRef.current;if(!el)return;const check=()=>{setCanScroll(el.scrollHeight-el.scrollTop-el.clientHeight>10);};check();el.addEventListener('scroll',check);return()=>el.removeEventListener('scroll',check);},[revealIdx,text]);
+  // Auto-scroll as RPG text reveals
+  useEffect(()=>{const el=textRef.current;if(el&&speaking){el.scrollTop=el.scrollHeight;}},[revealIdx]);
+  // Reaction emojis
+  const[reactionEmojis,setReactionEmojis]=useState([]);
+  useEffect(()=>{if(!speaking&&text){const picked=pickReaction(text);setReactionEmojis(picked);const t=setTimeout(()=>setReactionEmojis([]),4000);return()=>clearTimeout(t);}if(speaking)setReactionEmojis([]);},[speaking,text]);
+  // Dragging — cat itself is the drag handle
   const onDragStart=useCallback((startX,startY)=>{
     const ox=pos.x,oy=pos.y;
     const onMove=(mx,my)=>{setPos({x:Math.max(0,Math.min(window.innerWidth-200,ox+mx-startX)),y:Math.max(0,Math.min(window.innerHeight-100,oy+my-startY))});};
@@ -74,21 +101,24 @@ const Commentator=memo(function Commentator({text,speaking,visible}){
     document.addEventListener('mousemove',onMM);document.addEventListener('mouseup',onUp);document.addEventListener('touchmove',onTM,{passive:true});document.addEventListener('touchend',onUp);
   },[pos]);
   if(!visible)return null;
+  const displayed=text?text.slice(0,revealIdx):'';
   return(<div className={`commentator ${minimized?'comm-min':''}`} style={{left:pos.x,top:pos.y}} ref={dragRef}>
-    <div className="comm-drag-handle" onMouseDown={e=>{e.preventDefault();onDragStart(e.clientX,e.clientY);}} onTouchStart={e=>{if(e.touches[0])onDragStart(e.touches[0].clientX,e.touches[0].clientY);}}>
-      <span className="comm-drag-dots">⋮⋮</span><span>EL GATO CRÍTICO</span>
-    </div>
-    <div className="comm-body">
-      <div className={`comm-avatar${speaking?' comm-speaking':''}`} onClick={()=>{setMinimized(!minimized);if(!minimized)setHasNew(false);}}>
+    <div className="comm-cat-wrap">
+      <div className={`comm-avatar${speaking?' comm-speaking':''}`}
+        onClick={()=>{setMinimized(!minimized);if(!minimized)setHasNew(false);}}
+        onMouseDown={e=>{e.preventDefault();onDragStart(e.clientX,e.clientY);}}
+        onTouchStart={e=>{if(e.touches[0])onDragStart(e.touches[0].clientX,e.touches[0].clientY);}}>
         <CatCritic speaking={speaking}/>
         {speaking&&<div className="comm-sparkles"><span className="sparkle s1">✦</span><span className="sparkle s2">★</span><span className="sparkle s3">✧</span><span className="sparkle s4">⚝</span><span className="sparkle s5">✦</span><span className="sparkle s6">★</span></div>}
         {hasNew&&minimized&&<div className="comm-badge"/>}
       </div>
-      {!minimized&&<div className="comm-bubble">
-        <div className="comm-bubble-arrow"/>
-        <div className="comm-text">{text||'...'}{speaking&&<span className="comm-cursor">|</span>}</div>
-      </div>}
+      {reactionEmojis.length>0&&<div className="comm-reactions">{reactionEmojis.map((e,i)=><span key={i} className={`comm-emoji ce${i}`}>{e}</span>)}</div>}
     </div>
+    {!minimized&&<div className="comm-bubble">
+      <div className="comm-bubble-arrow"/>
+      <div className="comm-text" ref={textRef}>{displayed||'...'}{speaking&&<span className="comm-cursor">|</span>}</div>
+      {canScroll&&<div className="comm-scroll-hint" onClick={()=>{const el=textRef.current;if(el)el.scrollTop=el.scrollHeight;}}>▼ scroll</div>}
+    </div>}
   </div>);
 });
 function typeTag(c){return c?`${TI[c.type]} ${TL[c.type]}`:'';}
