@@ -24,10 +24,26 @@ function wcLabel(c){return c?.isInterruption?`Comodín de ${TL[c.type]}`:TL[c.ty
 function cardLabel(c){if(!c)return'?';return`${TI[c.type]||''} ${c.name} (${TL[c.type]||c.type})${c.isInterruption?' ↻':''}`;}
 function cardLabelShort(c){return c?`${TI[c.type]} ${c.name}`:'';}
 
-// ═══ CAT CRITIC — pixel art SVG avatar ═══
-function CatCritic({speaking}){
+// ═══ CAT CRITIC — pixel art SVG with expressions ═══
+// expression: 'normal','surprise','angry','pleased','thinking'
+function CatCritic({speaking,expression='normal'}){
   const[mouthOpen,setMouthOpen]=useState(false);
-  useEffect(()=>{if(!speaking){setMouthOpen(false);return;}const iv=setInterval(()=>setMouthOpen(p=>!p),350);return()=>clearInterval(iv);},[speaking]);
+  useEffect(()=>{if(!speaking){setMouthOpen(false);return;}const iv=setInterval(()=>setMouthOpen(p=>!p),300);return()=>clearInterval(iv);},[speaking]);
+  // Eye variations by expression
+  const eyeL=expression==='surprise'?{y:13,h:3.5,fill:'#2a1a2a'}:expression==='angry'?{y:14,h:2,fill:'#1a1a2a'}:expression==='pleased'?{y:14.5,h:1,fill:'#1a1a2a'}:{y:13.5,h:2.5,fill:'#1a1a2a'};
+  const eyeR={...eyeL};
+  const pupilY=expression==='pleased'?14.2:expression==='surprise'?13.5:14;
+  const pupilSize=expression==='surprise'?1.5:1;
+  // Eyebrows
+  const browL=expression==='surprise'?<line x1="9" y1="11" x2="13" y2="11.5" stroke="#444" strokeWidth="0.8"/>:expression==='angry'?<line x1="9" y1="12.5" x2="13" y2="11.5" stroke="#444" strokeWidth="0.8"/>:expression==='thinking'?<><line x1="9" y1="11.5" x2="13" y2="11.5" stroke="#444" strokeWidth="0.8"/><line x1="19" y1="12" x2="23" y2="11" stroke="#444" strokeWidth="0.8"/></>:null;
+  const browR=expression==='surprise'?<line x1="19" y1="11.5" x2="23" y2="11" stroke="#444" strokeWidth="0.8"/>:expression==='angry'?<line x1="19" y1="11.5" x2="23" y2="12.5" stroke="#444" strokeWidth="0.8"/>:null;
+  // Mouth variations
+  let mouth;
+  if(mouthOpen){mouth=<ellipse cx="16" cy="20" rx="3" ry="2" fill="#2a1a1a" stroke="#4a4a5a" strokeWidth="0.5"/>;}
+  else if(expression==='surprise'){mouth=<ellipse cx="16" cy="19.5" rx="2" ry="2.5" fill="#2a1a1a" stroke="#4a4a5a" strokeWidth="0.5"/>;}
+  else if(expression==='pleased'){mouth=<path d="M13,19 Q16,22 19,19" fill="none" stroke="#4a4a5a" strokeWidth="0.8"/>;}
+  else if(expression==='angry'){mouth=<path d="M13,20 Q16,18 19,20" fill="none" stroke="#4a4a5a" strokeWidth="0.8"/>;}
+  else{mouth=<line x1="14" y1="19.5" x2="18" y2="19.5" stroke="#4a4a5a" strokeWidth="0.8"/>;}
   return(<svg viewBox="0 0 32 32" className="cat-critic-svg" xmlns="http://www.w3.org/2000/svg">
     <polygon points="6,10 9,2 12,10" fill="#4a4a5a"/>
     <polygon points="7,9 9,4 11,9" fill="#6a6a7a"/>
@@ -38,14 +54,14 @@ function CatCritic({speaking}){
     <rect x="8" y="12" width="6" height="5" rx="1" fill="none" stroke="#d4af37" strokeWidth="1"/>
     <rect x="18" y="12" width="6" height="5" rx="1" fill="none" stroke="#d4af37" strokeWidth="1"/>
     <line x1="14" y1="14" x2="18" y2="14" stroke="#d4af37" strokeWidth="0.8"/>
-    <rect x="10" y="13.5" width="2" height="2.5" rx="0.5" fill="#1a1a2a"/>
-    <rect x="20" y="13.5" width="2" height="2.5" rx="0.5" fill="#1a1a2a"/>
-    <rect x="10.5" y="14" width="1" height="1" fill="#8cf"/>
-    <rect x="20.5" y="14" width="1" height="1" fill="#8cf"/>
+    {browL}{browR}
+    <rect x="10" y={eyeL.y} width="2" height={eyeL.h} rx="0.5" fill={eyeL.fill}/>
+    <rect x="20" y={eyeR.y} width="2" height={eyeR.h} rx="0.5" fill={eyeR.fill}/>
+    <rect x="10.5" y={pupilY} width={pupilSize} height={pupilSize} fill="#8cf"/>
+    <rect x="20.5" y={pupilY} width={pupilSize} height={pupilSize} fill="#8cf"/>
+    {expression==='surprise'&&<><rect x="10.2" y={pupilY-0.3} width=".6" height=".6" fill="#fff"/><rect x="20.2" y={pupilY-0.3} width=".6" height=".6" fill="#fff"/></>}
     <polygon points="15,17 17,17 16,18.5" fill="#e88"/>
-    {mouthOpen
-      ?<ellipse cx="16" cy="20" rx="3" ry="2" fill="#2a1a1a" stroke="#4a4a5a" strokeWidth="0.5"/>
-      :<line x1="14" y1="19.5" x2="18" y2="19.5" stroke="#4a4a5a" strokeWidth="0.8"/>}
+    {mouth}
     <line x1="2" y1="16" x2="8" y2="17" stroke="#888" strokeWidth="0.4"/>
     <line x1="2" y1="18" x2="8" y2="18" stroke="#888" strokeWidth="0.4"/>
     <line x1="24" y1="17" x2="30" y2="16" stroke="#888" strokeWidth="0.4"/>
@@ -56,18 +72,20 @@ function CatCritic({speaking}){
   </svg>);
 }
 
-// ═══ REACTION EMOJIS — detect sentiment from commentary ═══
+// ═══ REACTION EMOJIS + EXPRESSION — detect sentiment ═══
 const REACTIONS=[
-  {re:/golazo|magistral|brillante|genial|sublime|maravilla|espectacular|prodigio/i,emojis:['🌟','✨','👏','🏆','💎']},
-  {re:/destruir|terrible|lamentable|pobre|desastroso|abominable|horror|espanto/i,emojis:['💀','😤','🗑️','📉','🪦']},
-  {re:/increíble|inesperado|sorpresa|giro|vuelco|plot twist/i,emojis:['😱','🤯','🔥','⚡','💥']},
-  {re:/interesante|curioso|peculiar|hmm|veamos|debo reconocer/i,emojis:['🧐','😏','🎭','📖','🍷']},
-  {re:/pesar|regañadientes|admitir|reconozco/i,emojis:['😒','🙄','👀','💅','🎩']},
+  {re:/golazo|magistral|brillante|genial|sublime|maravilla|espectacular|prodigio|elegante/i,emojis:['🌟','✨','👏','🏆','💎'],expr:'pleased',anim:'comm-react-nod'},
+  {re:/destruir|terrible|lamentable|pobre|desastroso|abominable|horror|espanto|cliché|trillado/i,emojis:['💀','😤','🗑️','📉','🔻'],expr:'angry',anim:'comm-react-shake'},
+  {re:/increíble|inesperado|sorpresa|giro|vuelco|plot twist|qué|imprevisto/i,emojis:['😱','🤯','🔥','⚡','💥'],expr:'surprise',anim:'comm-react-spin'},
+  {re:/interesante|curioso|peculiar|hmm|veamos|debo reconocer|analizando|noto/i,emojis:['🧐','😏','🎭','📖','🍷'],expr:'thinking',anim:'comm-react-tilt'},
+  {re:/pesar|regañadientes|admitir|reconozco|a mi pesar|concedo/i,emojis:['😒','🙄','👀','💅','🎩'],expr:'pleased',anim:'comm-react-nod'},
+  {re:/naruto|dragon ball|señor de los anillos|gandalf|game of thrones|dark|shyamalan|shakespeare/i,emojis:['🎬','📺','🎮','🎭','🍿'],expr:'surprise',anim:'comm-react-bounce'},
+  {re:/coherencia|lógica|sentido|cómo|espera|momento/i,emojis:['🤔','❓','📐','🧮','🔍'],expr:'thinking',anim:'comm-react-tilt'},
 ];
 function pickReaction(txt){
-  if(!txt)return['📝','🐱'];
-  for(const r of REACTIONS)if(r.re.test(txt))return r.emojis.slice(0,3);
-  return['📝','🐱'];
+  if(!txt)return{emojis:['📝','🐱'],expr:'normal',anim:''};
+  for(const r of REACTIONS)if(r.re.test(txt))return{emojis:r.emojis.slice(0,3),expr:r.expr,anim:r.anim};
+  return{emojis:['📝','🐱'],expr:'normal',anim:''};
 }
 
 // ═══ COMMENTATOR PANEL — frameless draggable cat ═══
@@ -78,6 +96,15 @@ const Commentator=memo(function Commentator({text,speaking,visible}){
   const dragRef=useRef(null);
   const prevText=useRef('');
   const textRef=useRef(null);
+  const isDrag=useRef(false);
+  // Extended speaking — keep mouth moving 6s after stream ends
+  const[extSpeaking,setExtSpeaking]=useState(false);
+  const extTimer=useRef(null);
+  useEffect(()=>{
+    if(speaking){setExtSpeaking(true);clearTimeout(extTimer.current);}
+    else if(extSpeaking){extTimer.current=setTimeout(()=>setExtSpeaking(false),6000);return()=>clearTimeout(extTimer.current);}
+  },[speaking]);
+  const isTalking=speaking||extSpeaking;
   // RPG text reveal — characters appear progressively
   const[revealIdx,setRevealIdx]=useState(0);
   useEffect(()=>{if(!text){setRevealIdx(0);return;}if(revealIdx>=text.length)return;const t=setTimeout(()=>setRevealIdx(p=>Math.min(p+2,text.length)),25);return()=>clearTimeout(t);},[text,revealIdx]);
@@ -87,36 +114,52 @@ const Commentator=memo(function Commentator({text,speaking,visible}){
   const[canScroll,setCanScroll]=useState(false);
   useEffect(()=>{const el=textRef.current;if(!el)return;const check=()=>{setCanScroll(el.scrollHeight-el.scrollTop-el.clientHeight>10);};check();el.addEventListener('scroll',check);return()=>el.removeEventListener('scroll',check);},[revealIdx,text]);
   // Auto-scroll as RPG text reveals
-  useEffect(()=>{const el=textRef.current;if(el&&speaking){el.scrollTop=el.scrollHeight;}},[revealIdx]);
-  // Reaction emojis
+  useEffect(()=>{const el=textRef.current;if(el&&isTalking){el.scrollTop=el.scrollHeight;}},[revealIdx]);
+  // Reaction emojis + expression + animation
   const[reactionEmojis,setReactionEmojis]=useState([]);
-  useEffect(()=>{if(!speaking&&text){const picked=pickReaction(text);setReactionEmojis(picked);const t=setTimeout(()=>setReactionEmojis([]),4000);return()=>clearTimeout(t);}if(speaking)setReactionEmojis([]);},[speaking,text]);
-  // Dragging — cat itself is the drag handle
+  const[expression,setExpression]=useState('normal');
+  const[reactAnim,setReactAnim]=useState('');
+  useEffect(()=>{
+    if(!speaking&&text){
+      const r=pickReaction(text);setReactionEmojis(r.emojis);setExpression(r.expr);setReactAnim(r.anim);
+      const t1=setTimeout(()=>setReactionEmojis([]),5000);
+      const t2=setTimeout(()=>{setReactAnim('');setExpression('normal');},4000);
+      return()=>{clearTimeout(t1);clearTimeout(t2);};
+    }
+    if(speaking){setReactionEmojis([]);setExpression('normal');setReactAnim('');}
+  },[speaking,text]);
+  // Dragging — separate drag from click
   const onDragStart=useCallback((startX,startY)=>{
+    isDrag.current=false;
     const ox=pos.x,oy=pos.y;
-    const onMove=(mx,my)=>{setPos({x:Math.max(0,Math.min(window.innerWidth-200,ox+mx-startX)),y:Math.max(0,Math.min(window.innerHeight-100,oy+my-startY))});};
+    const onMove=(mx,my)=>{
+      if(Math.abs(mx-startX)>4||Math.abs(my-startY)>4)isDrag.current=true;
+      setPos({x:Math.max(0,Math.min(window.innerWidth-200,ox+mx-startX)),y:Math.max(0,Math.min(window.innerHeight-100,oy+my-startY))});
+    };
     const onMM=e=>onMove(e.clientX,e.clientY);
     const onTM=e=>{if(e.touches[0])onMove(e.touches[0].clientX,e.touches[0].clientY);};
     const onUp=()=>{document.removeEventListener('mousemove',onMM);document.removeEventListener('mouseup',onUp);document.removeEventListener('touchmove',onTM);document.removeEventListener('touchend',onUp);};
     document.addEventListener('mousemove',onMM);document.addEventListener('mouseup',onUp);document.addEventListener('touchmove',onTM,{passive:true});document.addEventListener('touchend',onUp);
   },[pos]);
+  const handleClick=useCallback(()=>{if(!isDrag.current){setMinimized(m=>!m);setHasNew(false);}},[]);
   if(!visible)return null;
   const displayed=text?text.slice(0,revealIdx):'';
+  const avatarCls=`comm-avatar${isTalking?' comm-speaking':''}${reactAnim?' '+reactAnim:''}`;
   return(<div className={`commentator ${minimized?'comm-min':''}`} style={{left:pos.x,top:pos.y}} ref={dragRef}>
     <div className="comm-cat-wrap">
-      <div className={`comm-avatar${speaking?' comm-speaking':''}`}
-        onClick={()=>{setMinimized(!minimized);if(!minimized)setHasNew(false);}}
+      <div className={avatarCls}
+        onClick={handleClick}
         onMouseDown={e=>{e.preventDefault();onDragStart(e.clientX,e.clientY);}}
         onTouchStart={e=>{if(e.touches[0])onDragStart(e.touches[0].clientX,e.touches[0].clientY);}}>
-        <CatCritic speaking={speaking}/>
-        {speaking&&<div className="comm-sparkles"><span className="sparkle s1">✦</span><span className="sparkle s2">★</span><span className="sparkle s3">✧</span><span className="sparkle s4">⚝</span><span className="sparkle s5">✦</span><span className="sparkle s6">★</span></div>}
+        <CatCritic speaking={isTalking} expression={expression}/>
+        {isTalking&&<div className="comm-sparkles"><span className="sparkle s1">✦</span><span className="sparkle s2">★</span><span className="sparkle s3">✧</span><span className="sparkle s4">⚝</span><span className="sparkle s5">✦</span><span className="sparkle s6">★</span></div>}
         {hasNew&&minimized&&<div className="comm-badge"/>}
       </div>
       {reactionEmojis.length>0&&<div className="comm-reactions">{reactionEmojis.map((e,i)=><span key={i} className={`comm-emoji ce${i}`}>{e}</span>)}</div>}
     </div>
     {!minimized&&<div className="comm-bubble">
       <div className="comm-bubble-arrow"/>
-      <div className="comm-text" ref={textRef}>{displayed||'...'}{speaking&&<span className="comm-cursor">|</span>}</div>
+      <div className="comm-text" ref={textRef}>{displayed||'...'}{isTalking&&<span className="comm-cursor">|</span>}</div>
       {canScroll&&<div className="comm-scroll-hint" onClick={()=>{const el=textRef.current;if(el)el.scrollTop=el.scrollHeight;}}>▼ scroll</div>}
     </div>}
   </div>);
@@ -497,7 +540,7 @@ function FloatingVote({vote,players,myId,onVote,isSpec,config}){
     function onUp(){drag.current.active=false;document.removeEventListener('mousemove',onMove);document.removeEventListener('mouseup',onUp);document.removeEventListener('touchmove',onMove);document.removeEventListener('touchend',onUp);}
     document.addEventListener('mousemove',onMove);document.addEventListener('mouseup',onUp);document.addEventListener('touchmove',onMove,{passive:false});document.addEventListener('touchend',onUp);
   }
-  const style=pos?{left:pos.x,top:pos.y,bottom:'auto',right:'auto'}:{};
+  const style=pos?{left:pos.x,top:pos.y,bottom:'auto',right:'auto',transform:'none'}:{};
   return(<div ref={ref} className="vote-float" style={style}>
     <div className="vote-float-handle" onMouseDown={onDown} onTouchStart={onDown}><span>VOTACIÓN</span>⋮⋮</div>
     <VoteCorner vote={vote} players={players} myId={myId} onVote={onVote} isSpec={isSpec} config={config}/>

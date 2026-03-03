@@ -878,6 +878,17 @@ body{font-family:var(--vt);background:var(--bg);color:var(--txt);-webkit-font-sm
 .comm-cursor{color:#c62828;animation:blink8 .5s step-end infinite;font-weight:bold;}
 .comm-scroll-hint{position:absolute;bottom:4px;right:10px;font-family:var(--px);font-size:8px;color:#888;background:rgba(255,255,255,.9);padding:2px 6px;border-radius:6px;cursor:pointer;animation:scrollHintPulse 1.5s ease-in-out infinite;}
 @keyframes scrollHintPulse{0%,100%{opacity:.5;}50%{opacity:1;}}
+/* Cat reaction animations */
+.comm-react-spin{animation:catSpin .8s cubic-bezier(.34,1.56,.64,1) 1!important;}
+.comm-react-shake{animation:catAngryShake .5s ease-in-out 3!important;}
+.comm-react-bounce{animation:catBounce .6s cubic-bezier(.34,1.56,.64,1) 2!important;}
+.comm-react-tilt{animation:catTilt 1.2s ease-in-out 1!important;}
+.comm-react-nod{animation:catNod .4s ease-in-out 3!important;}
+@keyframes catSpin{0%{transform:scale(1) rotate(0deg);}50%{transform:scale(1.2) rotate(180deg);}100%{transform:scale(1) rotate(360deg);}}
+@keyframes catAngryShake{0%,100%{transform:translateX(0);}20%{transform:translateX(-8px) rotate(-5deg);}40%{transform:translateX(8px) rotate(5deg);}60%{transform:translateX(-6px) rotate(-3deg);}80%{transform:translateX(6px) rotate(3deg);}}
+@keyframes catBounce{0%{transform:translateY(0) scale(1);}40%{transform:translateY(-20px) scale(1.15);}60%{transform:translateY(-5px) scale(.95);}100%{transform:translateY(0) scale(1);}}
+@keyframes catTilt{0%{transform:rotate(0deg);}30%{transform:rotate(15deg);}60%{transform:rotate(-8deg);}100%{transform:rotate(0deg);}}
+@keyframes catNod{0%,100%{transform:translateY(0);}50%{transform:translateY(6px);}}
 .comm-min{width:auto!important;}
 .comm-min .comm-avatar{width:72px;height:72px;}
 
