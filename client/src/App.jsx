@@ -522,8 +522,11 @@ function NarratorEditor({story,integrations,sealedPos,frozenPos,pendingVote,play
 // ═══ PIXEL BOOK ═══
 function PixelBook(){return(<div className="px-book"><svg viewBox="0 0 64 48" className="px-book-svg" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="8" width="26" height="36" fill="#2a1a0a" stroke="#d4af37" strokeWidth="2"/><rect x="34" y="8" width="26" height="36" fill="#2a1a0a" stroke="#d4af37" strokeWidth="2"/><rect x="6" y="10" width="22" height="32" fill="#3d2b1a"/><rect x="36" y="10" width="22" height="32" fill="#3d2b1a"/><line x1="30" y1="6" x2="30" y2="44" stroke="#d4af37" strokeWidth="3"/>{[0,1,2,3,4,5].map(i=><rect key={i} x="9" y={14+i*5} width={14-i%3*2} height="2" fill="rgba(212,175,55,0.25)"/>)}{[0,1,2,3,4].map(i=><rect key={i} x="39" y={14+i*5} width={16-i%2*4} height="2" fill="rgba(212,175,55,0.25)"/>)}</svg><div className="px-quill"><svg viewBox="0 0 24 32" className="px-quill-svg" xmlns="http://www.w3.org/2000/svg"><path d="M4 28 L8 8 L12 2 L14 6 L10 24 L6 30 Z" fill="#f5e6a3" stroke="#d4af37" strokeWidth="1"/><path d="M6 26 L8 14 L10 10 L10 22 Z" fill="#d4af37" opacity="0.5"/><rect x="4" y="28" width="4" height="3" fill="#4a4235"/></svg></div></div>);}
 
-// ═══ MINI LOGO — small inline version of the title for topbar ═══
-function MiniLogo(){return(<div className="mini-logo"><svg viewBox="0 0 32 24" className="mini-logo-svg" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="4" width="13" height="18" fill="#2a1a0a" stroke="#d4af37" strokeWidth="1"/><rect x="17" y="4" width="13" height="18" fill="#2a1a0a" stroke="#d4af37" strokeWidth="1"/><rect x="3" y="5" width="11" height="16" fill="#3d2b1a"/><rect x="18" y="5" width="11" height="16" fill="#3d2b1a"/><line x1="15" y1="3" x2="15" y2="22" stroke="#d4af37" strokeWidth="1.5"/>{[0,1,2,3].map(i=><rect key={i} x="5" y={7+i*3.5} width={7-i%2*2} height="1" fill="rgba(212,175,55,0.3)"/>)}{[0,1,2].map(i=><rect key={i} x="20" y={7+i*3.5} width={8-i%2*3} height="1" fill="rgba(212,175,55,0.3)"/>)}</svg></div>);}
+// ═══ MINI LOGO — inline book+quill for topbar, matches home screen style ═══
+function MiniLogo(){return(<div className="mini-logo">
+  <svg viewBox="0 0 64 48" className="mini-logo-svg" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="8" width="26" height="36" fill="#2a1a0a" stroke="#d4af37" strokeWidth="2"/><rect x="34" y="8" width="26" height="36" fill="#2a1a0a" stroke="#d4af37" strokeWidth="2"/><rect x="6" y="10" width="22" height="32" fill="#3d2b1a"/><rect x="36" y="10" width="22" height="32" fill="#3d2b1a"/><line x1="30" y1="6" x2="30" y2="44" stroke="#d4af37" strokeWidth="3"/>{[0,1,2,3,4,5].map(i=><rect key={i} x="9" y={14+i*5} width={14-i%3*2} height="2" fill="rgba(212,175,55,0.25)"/>)}{[0,1,2,3,4].map(i=><rect key={i} x="39" y={14+i*5} width={16-i%2*4} height="2" fill="rgba(212,175,55,0.25)"/>)}</svg>
+  <div className="mini-quill"><svg viewBox="0 0 24 32" xmlns="http://www.w3.org/2000/svg"><path d="M4 28 L8 8 L12 2 L14 6 L10 24 L6 30 Z" fill="#f5e6a3" stroke="#d4af37" strokeWidth="1"/><path d="M6 26 L8 14 L10 10 L10 22 Z" fill="#d4af37" opacity="0.5"/><rect x="4" y="28" width="4" height="3" fill="#4a4235"/></svg></div>
+</div>);}
 
 // ═══ ACTION LOG ═══
 function ActionLog({entries}){const ref=useRef(null);useEffect(()=>{ref.current&&(ref.current.scrollTop=ref.current.scrollHeight);},[entries?.length]);
@@ -580,7 +583,7 @@ export default function App(){
   const[storyUnread,setStoryUnread]=useState(false);
 
   useEffect(()=>{myIdRef.current=myId;},[myId]);
-  useEffect(()=>{dragOverWordRef.current=dragOverWord;},[dragOverWord]);
+  function setDragOverWordSync(v){dragOverWordRef.current=v;setDragOverWord(v);}
   useEffect(()=>()=>{clearPopupTimer();clearTimeout(vrT.current);clearTimeout(cfgTimer.current);clearTimeout(storyThrottleRef.current);stopMusic();},[]);
   const notify=useCallback((msg,dur=3000)=>{setNotif(msg);setTimeout(()=>setNotif(null),dur);},[]);
   function doToggleMute(){const m=toggleMute();setMuted(m);if(!m&&screen==='game')startMusic(musicTrack);}
@@ -740,6 +743,7 @@ export default function App(){
   const sealedPos=gs?.sealedPos||0;
   const frozenPos=gs?.frozenPos||0;
   const isNarr=gs&&gs.myId===gs.narratorId&&!isSpec;
+  useEffect(()=>{if(!isNarr)setShowPass(false);},[isNarr]);
   const isVoting=!!gs?.currentVote;
   const myPriv=gs?.private;const handSize=gs?.config?._effectiveHandSize||gs?.config?.handSize||5;
 
@@ -767,7 +771,7 @@ export default function App(){
 
   // ═══ DRAG & DROP — card dropped on a word ═══
   function onCardDrop(cardId,fragment){
-    setIsDraggingCard(false);setDragOverWord(null);
+    setIsDraggingCard(false);setDragOverWordSync(null);draggingCardRef.current=null;
     if(gs?.phase!=='playing')return;
     if(gs.currentVote){notify('VOTO EN CURSO');return;}
     if(gs.interruptWindow){notify('⚜ VENTANA DE INTERRUPCIÓN');return;}
@@ -796,10 +800,10 @@ export default function App(){
   }
   function handleCardDragEnd(e){
     e.target.classList.remove('dragging');
-    // If a word was highlighted during drag, trigger the drop on it
+    // If a word was highlighted during drag and onDrop didn't already fire, trigger it
     const w=dragOverWordRef.current;const cid=draggingCardRef.current;
     if(w&&cid){onCardDrop(cid,{text:w.t,start:w.s,end:w.e});}
-    else{setIsDraggingCard(false);setDragOverWord(null);}
+    else{setIsDraggingCard(false);setDragOverWordSync(null);}
     draggingCardRef.current=null;
   }
 
@@ -862,8 +866,10 @@ export default function App(){
     }
     playersSummary+='</ul>';
     const fullHtml=`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Once Upon a Time — Historia</title><style>body{background:#0a0a12;color:#c8c0b0;font-family:Georgia,serif;max-width:800px;margin:0 auto;padding:40px 20px;line-height:1.8;font-size:18px;}h1{font-family:'Cinzel Decorative',serif;color:#d4af37;text-align:center;font-size:32px;margin-bottom:5px;}h2{font-size:20px;}.subtitle{text-align:center;color:#7a6f60;font-size:14px;margin-bottom:30px;}@media print{body{background:#fff;color:#222;}h1,h2{color:#8B6914;}span[style]{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}</style></head><body><h1>Once Upon a Time</h1><div class="subtitle">${gs?.code||''} — ${new Date().toLocaleDateString('es')}</div><div style="border:1px solid #333;padding:20px;border-radius:4px;margin-bottom:20px;">${html}</div>${legend}${playersSummary}<div style="margin-top:30px;text-align:center;color:#4a4235;font-size:12px;">Generado con Once Upon a Time LAN</div></body></html>`;
-    const w=window.open('','_blank');if(w){w.document.write(fullHtml);w.document.close();}
+    return fullHtml;
   }
+  function downloadWord(){const html=downloadStory();if(!html)return;const blob=new Blob(['\ufeff'+html],{type:'application/msword'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`historia_${gs?.code||'ouat'}_${new Date().toISOString().slice(0,10)}.doc`;a.click();URL.revokeObjectURL(url);}
+  function downloadPdf(){const html=downloadStory();if(!html)return;const w=window.open('','_blank');if(w){w.document.write(html);w.document.close();setTimeout(()=>w.print(),500);}}
   function escHtml(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
   const isFinished=gs?.phase==='finished';
@@ -1043,11 +1049,11 @@ export default function App(){
         <div className="gmain">
           <div className="scol"><div className="slbl story-lbl">HISTORIA</div>
             {isNarr
-              ?<NarratorEditor story={gs.story} integrations={gs.integrations} sealedPos={sealedPos} frozenPos={frozenPos} pendingVote={gs.currentVote} players={gs.players} activeCard={activeCard} pendingSel={pendingSel} isVoting={isVoting} isInterruptWindow={!!gs.interruptWindow} onUpdate={updateStory} onTextSelected={onTextSelected} isDraggingCard={isDraggingCard} onWordDrop={onCardDrop} dragOverWord={dragOverWord} setDragOverWord={setDragOverWord}/>
+              ?<NarratorEditor story={gs.story} integrations={gs.integrations} sealedPos={sealedPos} frozenPos={frozenPos} pendingVote={gs.currentVote} players={gs.players} activeCard={activeCard} pendingSel={pendingSel} isVoting={isVoting} isInterruptWindow={!!gs.interruptWindow} onUpdate={updateStory} onTextSelected={onTextSelected} isDraggingCard={isDraggingCard} onWordDrop={onCardDrop} dragOverWord={dragOverWord} setDragOverWord={setDragOverWordSync}/>
               :(<div ref={storyRef} className={`sdisp ${activeCard||pendingSel?'card-mode':''} ${isDraggingCard?'drag-active':''}`} onMouseUp={handleReaderMouseUp} onTouchEnd={handleReaderTouchEnd}
                 onDragOver={e=>{if(isDraggingCard){e.preventDefault();e.dataTransfer.dropEffect='move';}}}
-                onDrop={e=>{if(isDraggingCard){e.preventDefault();setDragOverWord(null);}}}>
-                <StoryWords text={gs.story} integrations={gs.integrations} sealedPos={sealedPos} pendingVote={gs.currentVote} players={gs.players} dropEnabled={isDraggingCard} onWordDrop={onCardDrop} dragOverWord={dragOverWord} setDragOverWord={setDragOverWord} tappable={!!activeCard&&!isDraggingCard} onWordTap={handleWordTap}/>
+                onDrop={e=>{if(isDraggingCard){e.preventDefault();setDragOverWordSync(null);}}}>
+                <StoryWords text={gs.story} integrations={gs.integrations} sealedPos={sealedPos} pendingVote={gs.currentVote} players={gs.players} dropEnabled={isDraggingCard} onWordDrop={onCardDrop} dragOverWord={dragOverWord} setDragOverWord={setDragOverWordSync} tappable={!!activeCard&&!isDraggingCard} onWordTap={handleWordTap}/>
                 {gs.story&&gs.phase==='playing'&&<span className="story-cursor"/>}
                 {!gs.story&&<span className="ph">...</span>}</div>)}
             {storyUnread&&!isNarr&&<button className="scroll-indicator" onClick={()=>{const el=storyRef.current;if(el){el.scrollTop=el.scrollHeight;setStoryUnread(false);}}}>↓ Nuevo texto</button>}
@@ -1123,7 +1129,7 @@ export default function App(){
           </div>);})}</div>
         {gs.story&&<div className="srecap"><div className="rtxt">{gs.story}</div></div>}
         <div style={{display:'flex',gap:12,marginTop:20,flexWrap:'wrap',justifyContent:'center'}}>
-          <button className="btn-gold" onClick={downloadStory}>▼ DESCARGAR</button>
+          <button className="btn-gold" onClick={downloadWord}>▼ WORD</button><button className="btn-gold" onClick={downloadPdf}>▼ PDF</button>
           {isHost&&<button className="btn-pri" onClick={doRestart} style={{maxWidth:220}}>► NUEVA PARTIDA</button>}
           <button className="btn-sec" onClick={goHome}>◄ MENÚ</button></div></div>);})()}
 
